@@ -2,8 +2,8 @@
 -compile(export_all).
 -include("rensa.hrl").
 
-next(#rensa_context{cp=[X|XS], s=S, r=R}=C) ->
-    io:format("next: ~p ~p ~p\n", [S, R, [X|XS]]),
+next(#rensa_context{cp=[X|XS], s=S, r=R, here=H}=C) ->
+    io:format("next: s~p r~p cp~p here~p\n", [S, R, [X|XS], H]),
     apply(X, [C#rensa_context{cp=XS}]);
 next(C) ->
     io:format("!!!next: ~p\n", [C]).
@@ -28,7 +28,7 @@ make_fun([X|XS], Compiled, C) ->
                     io:format("error ~p!", [X]),
                     exit(C)
             end;
-        F ->
+        #rensa_word{f=F} ->
             make_fun(XS, [F|Compiled], C)
     end.
 
@@ -37,8 +37,8 @@ make_fun([X|XS], Compiled, C) ->
 
 find(Word, #rensa_context{d=D}) ->
     case maps:find(Word, D) of
-        {ok, #rensa_word{f=F, hidden=false}} ->
-            F;
+        {ok, #rensa_word{hidden=false}=X} ->
+            X;
         _ ->
             error
     end.
@@ -59,25 +59,51 @@ init_context(C) ->
                 C,
                 [{"1+", ["lit", "1", "+", "exit"], false}
                 ,{"1-", ["lit", "1", "-", "exit"], false}
-                %,{":", ["word",
-                %        "header",
-                %        "lit",
-                %        "docol_code",
-                %        "comma",
-                %        "latest", "fetch", "hidden",
-                %        "rbrac",
-                %        "exit"], false}
+                ,{":", ["word",
+                        "header",
+                        "latest", "hidden",
+                        "]",
+                        "exit"], false}
                 ]).
 
 main() ->
+    Exit = fun(#rensa_context{r=[X|XS]}=C) ->
+                   next(C#rensa_context{r=XS, cp=X})
+           end,
     C = #rensa_context{
            d = #{
+             "[" =>
+                 #rensa_word{
+                    f = fun(C) ->
+                                next(C#rensa_context{compile=false})
+                        end
+                   },
+             "]" =>
+                 #rensa_word{
+                    f = fun(C) ->
+                                next(C#rensa_context{compile=true})
+                        end
+                   },
+             "latest" =>
+                 #rensa_word{
+                    f = fun(#rensa_context{s=S, latest=L}=C) ->
+                                next(C#rensa_context{s=[L|S]})
+                        end
+                   },
+             "hidden" =>
+                 #rensa_word{
+                    f = fun(#rensa_context{s=[S|SS], d=D}=C) ->
+                                W = maps:get(S, D),
+                                W2 = W#rensa_word{hidden=true},
+                                next(C#rensa_context{s=SS, d=maps:put(S, W2, D)})
+                        end
+                   },
+             "comma" =>
+                 #rensa_word{f = comma},
              "exit" =>
                  #rensa_word{
                     name = "exit",
-                    f = fun(#rensa_context{r=[X|XS]}=C) ->
-                                next(C#rensa_context{r=XS, cp=X})
-                        end
+                    f = Exit
                    },
              "lit" =>
                  #rensa_word{
@@ -118,13 +144,14 @@ main() ->
                                        d = maps:put(Word,
                                                     #rensa_word{
                                                        name = Word,
-                                                       f = make_fun(lists:reverse(H), C)
+                                                       f = make_fun([], [Exit|H], C)
                                                       },
                                                     D),
                                        here = [],
                                        compile = false
                                       })
-                        end
+                        end,
+                    immed=true
                    },
              "," =>
                  #rensa_word{
@@ -231,11 +258,11 @@ interpret(#rensa_context{s=S, compile=Compile}=C) ->
                     io:format("~s is unknow.\n", [Word]),
                     C2
             end;
-        F ->
-            case Compile of
-                false ->
-                    apply(F, [C2]);
-                true ->
-                    comma(F, C2)
+        #rensa_word{f=F, immed=Immed} ->
+            case {Immed, Compile} of
+                {false, true} ->
+                    comma(F, C2);
+                _ ->
+                    apply(F, [C2])
             end
     end.
