@@ -3,7 +3,7 @@
 -include("rensa.hrl").
 
 next(#rensa_context{cp=[X|XS], s=S, r=R}=C) ->
-    io:format("next: ~p ~p\n", [S, R]),
+    io:format("next: ~p ~p ~p\n", [S, R, [X|XS]]),
     apply(X, [C#rensa_context{cp=XS}]);
 next(C) ->
     io:format("!!!next: ~p\n", [C]).
@@ -75,8 +75,8 @@ main() ->
              "exit" =>
                  #rensa_word{
                     name = "exit",
-                    f = fun(#rensa_context{r=[X|XS], cp=CP}=C) ->
-                                next(C#rensa_context{r=XS, cp=[X|CP]})
+                    f = fun(#rensa_context{r=[X|XS]}=C) ->
+                                next(C#rensa_context{r=XS, cp=X})
                         end
                    },
              "lit" =>
