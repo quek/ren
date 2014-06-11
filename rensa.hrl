@@ -1,4 +1,4 @@
--record(rensa_word, {
+-record(word, {
           name,
           f=nil,
           code=nil,
@@ -6,7 +6,7 @@
           immed=false
          }).
 
--record(rensa_context, {
+-record(context, {
           s=[],
           r=[],
           cp,

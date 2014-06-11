@@ -1,0 +1,135 @@
+http://d.hatena.ne.jp/cooldaemon/20080629/1214746935
+
+ErlyWeb の smerl より
+
+
+test_smerl() ->
+  M1 = smerl:new(foo),
+  {ok, M2} = smerl:add_func(M1, "bar() -> 1 + 1."),
+  smerl:compile(M2),
+  foo:bar(),   % returns 2``
+  smerl:has_func(M2, bar, 0). % returns true
+
+fun() ->
+ M0 = smerl:new(foo),
+ {ok, M1} = smerl:add_func(M0,
+      "hello(X) -> io:format(\"<~s>~n\", [X])."),
+ {ok, M2} = smerl:add_func(M1, "barbar(X, Y) -> X * Y.")
+end().
+
+smerl:get_module(foo).
+
+smerl:to_src(element(2, smerl:for_file("/tmp/fib.erl"))).
+
+
+Erlang のメーリングリストより
+
+
+Erlang のメーリングリストから引用
+From: "Ulf Wiger \(TN/EAB\)"
+Message-ID: <6616D98C65DD514BA2E1DDC5F922315501A993CB@esealmw115.eemea.ericsson.se>
+Subject: Re: [erlang-questions] Charset conversion / stylistic question.
+Consider the following module:
+-module(gen_keyvals).
+
+-export([mod/3]).
+
+
+mod(Mod, Function, Vals) when is_atom(Mod), is_atom(Function) ->
+   [{attribute, 1, module, Mod},
+    {attribute, 1, export, [{Function, 1}]},
+    gen_function(Function, Vals)].
+
+gen_function(F, Vals) ->
+   {function, 1, F, 1,
+    [{clause, 1, [{atom, 1, K}], [],
+      [erl_parse:abstract(V)]} ||
+        {K,V} <- Vals]}.
+
+An example:
+
+Eshell V5.5.3.1  (abort with ^G)
+1> c(gen_keyvals).
+{ok,gen_keyvals}
+2> gen_keyvals:mod(m,foo,[{a,1},{b,2},{c,3}]).
+[{attribute,1,module,m},
+ {attribute,1,export,[{foo,1}]},
+ {function,1,
+          foo,
+          1,
+          [{clause,1,[{atom,1,a}],[],[{integer,0,1}]},
+           {clause,1,[{atom,1,b}],[],[{integer,0,2}]},
+           {clause,1,[{atom,1,c}],[],[{integer,0,3}]}]}]
+3> compile:forms(v(2)).
+{ok,m,
+
+<<70,79,82,49,0,0,1,184,66,69,65,77,65,116,111,109,0,0,0,51,0,0,0,8,1,10
+9,
+     ...>>}
+4> code:load_binary(m,"m.beam",element(3,v(3))).
+{module,m}
+5> m:foo(a).
+1
+6> m:foo(c).
+3
+
+If you want the generated code in a .erl file, this is
+also easily accomplished:
+
+9> [erl_pp:form(F) || F <- v(2)].
+[[[[[[45,"module"]],[[40,[["m"],41]]]],".\n"]],
+ [[[["-export"],[[40,[[91,[[["foo",47,"1"]],93]],41]]]],".\n"]],
+ [[[[[[["foo",[[40,["a",41]]]]]," ->"],["\n    ",["1",59]]],
+   [10,[[[["foo",[[40,["b",41]]]]]," ->"],["\n    ",["2",59]]]],
+   [10,[[[["foo",[[40,["c",41]]]]]," ->"],["\n    ",["3"]]]]],
+  ".\n"]]]
+10> io:format("~s~n", [v(9)]).
+-module(m).
+-export([foo/1]).
+foo(a) ->
+   1;
+foo(b) ->
+   2;
+foo(c) ->
+   3.
+
+
+
+Erlang 文字列をコンパイルする
+
+文字列をコンパイルする方法です。
+
+erl_scan:tokens で1文ずつスキャン。
+erl_parse:parse_form で1文ずつパース。
+compile:forms でモジュール単位でコンパイル。
+code:load_binary でコンパイルしたものをロードです。
+
+改行コードは \n にしておかないとだめです。
+-module(compile_string).
+-export([compile/1, test/0]).
+
+compile(FormsStr) ->
+    Forms = mk_forms(lists:flatten(FormsStr)),
+    {ok, M, B} = compile:forms(Forms),
+    {module, M} = code:load_binary(M, atom_to_list(M), B),
+    M.
+
+mk_forms(String) ->
+    mk_forms(String, []).
+
+mk_forms([], Acc) ->
+    lists:reverse(Acc);
+mk_forms(S, Acc) ->
+    {done, {ok, Tokens, _Line}, Rest} = erl_scan:tokens([], S, 0),
+    {ok, Parsed} = erl_parse:parse_form(Tokens),
+    mk_forms(Rest, [Parsed|Acc]).
+
+test() ->
+    S = "-module(fib).
+-export([fib/1]).
+fib(1) -> 1;
+fib(2) -> 1;
+fib(N) -> fib(N-1) + fib(N-2).
+",
+    compile(S),
+    fib:fib(10).                                % コンパイルした関数を呼出す。

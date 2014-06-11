@@ -2,21 +2,21 @@
 -compile(export_all).
 -include("rensa.hrl").
 
-next(#rensa_context{cp=[X|XS], s=S, r=R, here=H}=C) ->
+next(#context{cp=[X|XS], s=S, r=R, here=H}=C) ->
     io:format("next: s~p r~p cp~p here~p\n", [S, R, [X|XS], H]),
-    apply(X, [C#rensa_context{cp=XS}]);
+    apply(X, [C#context{cp=XS}]);
 next(C) ->
     io:format("!!!next: ~p\n", [C]).
 
-do_list(#rensa_context{s=[X|XS], cp=CP, r=R}=C) ->
-    next(C#rensa_context{s=XS, cp=X, r=[CP|R]}).
+do_list(#context{s=[X|XS], cp=CP, r=R}=C) ->
+    next(C#context{s=XS, cp=X, r=[CP|R]}).
 
 make_fun(Codes, C) ->
     make_fun(Codes, [], C).
 
 make_fun([], Compiled, _) ->
-    fun(#rensa_context{s=S}=C) ->
-            do_list(C#rensa_context{s=[lists:reverse(Compiled)|S]})
+    fun(#context{s=S}=C) ->
+            do_list(C#context{s=[lists:reverse(Compiled)|S]})
     end;
 make_fun([X|XS], Compiled, C) ->
     case find(X, C) of
@@ -28,16 +28,16 @@ make_fun([X|XS], Compiled, C) ->
                     io:format("error ~p!", [X]),
                     exit(C)
             end;
-        #rensa_word{f=F} ->
+        #word{f=F} ->
             make_fun(XS, [F|Compiled], C)
     end.
 
 
 
 
-find(Word, #rensa_context{d=D}) ->
+find(Word, #context{d=D}) ->
     case maps:find(Word, D) of
-        {ok, #rensa_word{hidden=false}=X} ->
+        {ok, #word{hidden=false}=X} ->
             X;
         _ ->
             error
@@ -46,10 +46,10 @@ find(Word, #rensa_context{d=D}) ->
 
 
 init_context(C) ->
-    lists:foldl(fun({Name, Codes, Immed}, #rensa_context{d=D}=Cn) ->
-                        Cn#rensa_context{
+    lists:foldl(fun({Name, Codes, Immed}, #context{d=D}=Cn) ->
+                        Cn#context{
                           d = maps:put(Name,
-                                       #rensa_word{
+                                       #word{
                                           f = make_fun(Codes, Cn),
                                           immed = Immed
                                          },
@@ -67,67 +67,67 @@ init_context(C) ->
                 ]).
 
 main() ->
-    Exit = fun(#rensa_context{r=[X|XS]}=C) ->
-                   next(C#rensa_context{r=XS, cp=X})
+    Exit = fun(#context{r=[X|XS]}=C) ->
+                   next(C#context{r=XS, cp=X})
            end,
-    C = #rensa_context{
+    C = #context{
            d = #{
              "[" =>
-                 #rensa_word{
+                 #word{
                     f = fun(C) ->
-                                next(C#rensa_context{compile=false})
+                                next(C#context{compile=false})
                         end
                    },
              "]" =>
-                 #rensa_word{
+                 #word{
                     f = fun(C) ->
-                                next(C#rensa_context{compile=true})
+                                next(C#context{compile=true})
                         end
                    },
              "latest" =>
-                 #rensa_word{
-                    f = fun(#rensa_context{s=S, latest=L}=C) ->
-                                next(C#rensa_context{s=[L|S]})
+                 #word{
+                    f = fun(#context{s=S, latest=L}=C) ->
+                                next(C#context{s=[L|S]})
                         end
                    },
              "hidden" =>
-                 #rensa_word{
-                    f = fun(#rensa_context{s=[S|SS], d=D}=C) ->
+                 #word{
+                    f = fun(#context{s=[S|SS], d=D}=C) ->
                                 W = maps:get(S, D),
-                                W2 = W#rensa_word{hidden=true},
-                                next(C#rensa_context{s=SS, d=maps:put(S, W2, D)})
+                                W2 = W#word{hidden=true},
+                                next(C#context{s=SS, d=maps:put(S, W2, D)})
                         end
                    },
              "comma" =>
-                 #rensa_word{f = comma},
+                 #word{f = comma},
              "exit" =>
-                 #rensa_word{
+                 #word{
                     name = "exit",
                     f = Exit
                    },
              "lit" =>
-                 #rensa_word{
+                 #word{
                     name = "lit",
-                    f = fun(#rensa_context{cp=[X|XS], s=S}=C) ->
-                                next(C#rensa_context{cp=XS, s=[X|S]})
+                    f = fun(#context{cp=[X|XS], s=S}=C) ->
+                                next(C#context{cp=XS, s=[X|S]})
                         end
                    },
              "word" =>
-                 #rensa_word{
+                 #word{
                     name = "word",
-                    f = fun(#rensa_context{s=S}=C) ->
+                    f = fun(#context{s=S}=C) ->
                                 {Word, C2} = word(C),
-                                next(C2#rensa_context{s=[Word|S]})
+                                next(C2#context{s=[Word|S]})
                         end
                    },
              "header" =>
-                 #rensa_word{
+                 #word{
                     name = "header",
-                    f = fun(#rensa_context{s=[Word|S], d=D}=C) ->
-                                next(C#rensa_context{
+                    f = fun(#context{s=[Word|S], d=D}=C) ->
+                                next(C#context{
                                        s = S,
                                        d = maps:put(Word,
-                                                    #rensa_word{
+                                                    #word{
                                                        hidden = true
                                                       },
                                                     D),
@@ -137,12 +137,12 @@ main() ->
                         end
                    },
              ";" =>
-                 #rensa_word{
+                 #word{
                     name = ";",
-                    f = fun(#rensa_context{d=D, here=H, latest=Word}=C) ->
-                                next(C#rensa_context{
+                    f = fun(#context{d=D, here=H, latest=Word}=C) ->
+                                next(C#context{
                                        d = maps:put(Word,
-                                                    #rensa_word{
+                                                    #word{
                                                        name = Word,
                                                        f = make_fun([], [Exit|H], C)
                                                       },
@@ -154,60 +154,60 @@ main() ->
                     immed=true
                    },
              "," =>
-                 #rensa_word{
+                 #word{
                     name = ",",
-                    f = fun(#rensa_context{s=[S|SS], here=H}=C) ->
-                                next(C#rensa_context{s=SS, here=[S|H]})
+                    f = fun(#context{s=[S|SS], here=H}=C) ->
+                                next(C#context{s=SS, here=[S|H]})
                         end
                    },
              "+" =>
-                 #rensa_word{
+                 #word{
                     name = "+",
-                    f = fun(#rensa_context{s=[A,B|X]}=C) ->
-                                next(C#rensa_context{s=[A+B|X]})
+                    f = fun(#context{s=[A,B|X]}=C) ->
+                                next(C#context{s=[A+B|X]})
                         end
                    },
              "-" =>
-                 #rensa_word{
+                 #word{
                     name= "-",
-                    f = fun(#rensa_context{s=[A,B|X]}=C) ->
-                                next(C#rensa_context{s=[B-A|X]})
+                    f = fun(#context{s=[A,B|X]}=C) ->
+                                next(C#context{s=[B-A|X]})
                         end
                    },
              "p" =>
-                 #rensa_word{
-                    f = fun(#rensa_context{s=[X|XS]}=C) ->
+                 #word{
+                    f = fun(#context{s=[X|XS]}=C) ->
                                 io:format("~p\n", [X]),
-                                next(C#rensa_context{s=XS})
+                                next(C#context{s=XS})
                         end
                    },
              ".s" =>
-                 #rensa_word{
-                    f = fun(#rensa_context{s=S}=C) ->
+                 #word{
+                    f = fun(#context{s=S}=C) ->
                                 io:format("~p\n", [S]),
                                 next(C)
                         end
                    },
              "quit" =>
-                 #rensa_word{ f = fun(_) -> exit("quit") end },
+                 #word{ f = fun(_) -> exit("quit") end },
              "interpret" =>
-                 #rensa_word {
-                    f = fun(#rensa_context{d=D}=C) ->
-                                #rensa_word{f=F} = maps:get("interpret", D),
-                                next(interpret(C#rensa_context{cp=[F]}))
+                 #word {
+                    f = fun(#context{d=D}=C) ->
+                                #word{f=F} = maps:get("interpret", D),
+                                next(interpret(C#context{cp=[F]}))
                         end
                    }
             }
           },
-    #rensa_context{d=D}=C2 = init_context(C),
-    #rensa_word{f=F} = maps:get("interpret", D),
-    next(C2#rensa_context{cp=[F]}).
+    #context{d=D}=C2 = init_context(C),
+    #word{f=F} = maps:get("interpret", D),
+    next(C2#context{cp=[F]}).
 
-key(#rensa_context{buffer=[X|XS]}=C) ->
-    {X, C#rensa_context{buffer=XS}};
+key(#context{buffer=[X|XS]}=C) ->
+    {X, C#context{buffer=XS}};
 key(C) ->
     [X|XS] = io:get_line(""),
-    {X, C#rensa_context{buffer=XS}}.
+    {X, C#context{buffer=XS}}.
 
 word(C) ->
     case key(C) of
@@ -235,11 +235,11 @@ to_number(X) ->
             end
     end.
 
-comma(F, #rensa_context{here=H}=C) ->
-    C#rensa_context{here=[F|H]}.
+comma(F, #context{here=H}=C) ->
+    C#context{here=[F|H]}.
 
 
-interpret(#rensa_context{s=S, compile=Compile}=C) ->
+interpret(#context{s=S, compile=Compile}=C) ->
     {Word, C2} = word(C),
     case find(Word, C) of
         error ->
@@ -247,10 +247,10 @@ interpret(#rensa_context{s=S, compile=Compile}=C) ->
                 {ok, N} ->
                     case Compile of
                         false ->
-                            C2#rensa_context{s=[N|S]};
+                            C2#context{s=[N|S]};
                         true ->
-                            comma(fun(#rensa_context{s=X}=CC) ->
-                                          CC#rensa_context{s=[N|X]}
+                            comma(fun(#context{s=X}=CC) ->
+                                          CC#context{s=[N|X]}
                                   end,
                                   C2)
                     end;
@@ -258,7 +258,7 @@ interpret(#rensa_context{s=S, compile=Compile}=C) ->
                     io:format("~s is unknow.\n", [Word]),
                     C2
             end;
-        #rensa_word{f=F, immed=Immed} ->
+        #word{f=F, immed=Immed} ->
             case {Immed, Compile} of
                 {false, true} ->
                     comma(F, C2);
