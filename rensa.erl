@@ -1,6 +1,24 @@
 -module(rensa).
 -compile(export_all).
--include("rensa.hrl").
+
+-record(word, {
+          name,
+          f=nil,
+          code=nil,
+          hidden=false,
+          immed=false
+         }).
+
+-record(context, {
+          s=[],
+          r=[],
+          cp,
+          compile=false,
+          here,
+          latest,
+          d,
+          buffer=""
+         }).
 
 next(#context{cp=[X|XS], s=S, r=R, here=H}=C) ->
     io:format("next: s~p r~p cp~p here~p\n", [S, R, [X|XS], H]),
@@ -266,3 +284,44 @@ interpret(#context{s=S, compile=Compile}=C) ->
                     apply(F, [C2])
             end
     end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% {_Module, Beam, _File} = code:get_object_code(base64).
+% beam_lib:chunks(Beam, [abstract_code]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+compile(SrcString) ->
+    Forms = mk_forms(lists:flatten(SrcString)),
+    io:format("~p\n", [Forms]),
+    %% コンパイルする
+    {ok, M, B} = compile:forms(Forms),
+    %% コンパイルしたものをロードする
+    {module, M} = code:load_binary(M, atom_to_list(M), B),
+    M.
+mk_forms(String) ->
+    mk_forms(String, []).
+mk_forms([], Acc) ->
+    lists:reverse(Acc);
+mk_forms(S, Acc) ->
+    %% 1文（ピリオドまで）をスキャン
+    {done, {ok, Tokens, _Line}, Rest} = erl_scan:tokens([], S, 0),
+    %% パースする
+    {ok, Parsed} = erl_parse:parse_form(Tokens),
+    mk_forms(Rest, [Parsed|Acc]).
+
+t1() ->
+    S = "-module(foo).
+-export([bar/0]).
+bar() ->
+    123.
+",
+compile(S).
+
+t2() ->
+    Xs = [{attribute, 0, module, foo},
+          {attribute, 0, export, [{bar, 0}]},
+          {function, 0, bar, 0,
+           [{clause, 0, [], [], [{integer, 0, 123}]}]}],
+    {ok, Module, Bin} = compile:forms(Xs),
+    io:format("~p ~p\n", [Module, Bin]),
+    code:load_binary(Module, atom_to_list(Module), Bin).
