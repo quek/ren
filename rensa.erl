@@ -311,14 +311,18 @@ mk_forms(S, Acc) ->
 
 t1() ->
     S = "-module(foo).
--export([bar/0]).
-bar() ->
-    123.
+-export([bar/1, baz/1, immed/2]).
+immed(bar, _) ->
+    true.
+bar(C) ->
+    C.
+baz(C) ->
+    foo:aaa(foo:bbb(123, foo:ccc(C))).
 ",
 compile(S).
 
 t2() ->
-    Xs = [{attribute, 0, module, foo},
+    Xs = [{attribute, 0, module, 'fo:;o'},
           {attribute, 0, export, [{bar, 0}]},
           {function, 0, bar, 0,
            [{clause, 0, [], [], [{integer, 0, 123}]}]}],
