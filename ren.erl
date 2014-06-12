@@ -70,8 +70,8 @@ lit(Literal, #context{s=[H|T]}=C) ->
 dup(#context{s=[H|T]}=C) ->
     C#context{s=[H,H|T]}.
 
-quit(_) ->
-    exit("quit").
+bye(_) ->
+    exit("bye").
 
 literal_type(X) when is_integer(X) ->
     integer.
@@ -112,12 +112,21 @@ header(#context{s=[Word|S]}=C) ->
     code:load_binary(CModule, atom_to_list(CModule), CBin),
     C#context{compile=false}.
 
-ts() ->
-    ';'(#context{here=[], latest="foo"}).
-
-
 '+'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[A+B|S]}.
+    C#context{s=[B+A|S]}.
+
+'-'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B-A|S]}.
+
+'*'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B*A|S]}.
+
+'/'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B/A|S]}.
+
+'.'(#context{s=[H|T]}=C) ->
+    io:format("~w\n", [H]),
+    C#context{s=T}.
 
 interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
     io:format("next: s=~w r=~w h=~w\n", [S, R, H]),
