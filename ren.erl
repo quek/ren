@@ -7,6 +7,67 @@ immed(';', _) ->
 immed(_, _) ->
     false.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+':'(#context{}=C) ->
+    {Word, #context{s=S}=C1} = word(C),
+    C2 = header(C1#context{s=[Word|S]}),
+    C2#context{compile=true}.
+
+';'(#context{here=H, latest=W}=C) ->
+    Clauses = lists:foldr(fun compile_code/2,
+                          {var, 1, 'C'},
+                          H),
+    {M, F} = module_function(W),
+    Codes = [{attribute, 0, module, M},
+             {attribute, 0, export, [{F, 1}, {immed, 2}]},
+             {function, 0, immed, 2,
+              [{clause, 0, [{atom, 0, F}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
+             {function, 0, F, 1, [{clause, 0, [{var, 0, 'C'}], [],
+                                   [Clauses]}]}],
+    io:format("~p\n", [Codes]),
+    {ok, CModule, CBin} = compile:forms(Codes),
+    code:load_binary(CModule, atom_to_list(CModule), CBin),
+    C#context{compile=false}.
+
+'+'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B+A|S]}.
+
+'-'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B-A|S]}.
+
+'*'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B*A|S]}.
+
+'/'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B/A|S]}.
+
+'.'(#context{s=[H|T]}=C) ->
+    io:format("~w\n", [H]),
+    C#context{s=T}.
+
+'['(#context{s=S}=C) ->
+    C#context{s=['['|S]}.
+
+']'(#context{s=S}=C) ->
+    C#context{s=']'(S, [])}.
+']'(['['|T], List) ->
+    [List|T];
+']'([H|T], List) ->
+    ']'(T, [H|List]).
+
+car(#context{s=[[]|T]}=C)->
+    C#context{s=[[]|T]};
+car(#context{s=[[X|_]|T]}=C) ->
+    C#context{s=[X|T]}.
+
+cdr(#context{s=[[]|T]}=C) ->
+    C#context{s=[[]|T]};
+cdr(#context{s=[[_|XS]|T]}=C) ->
+    C#context{s=[XS|T]}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 module_function(Word) ->
     {list_to_atom("forth_" ++ Word),
@@ -91,43 +152,6 @@ header(#context{s=[Word|S]}=C) ->
               latest=Word,
               here=[]}.
 
-':'(#context{}=C) ->
-    {Word, #context{s=S}=C1} = word(C),
-    C2 = header(C1#context{s=[Word|S]}),
-    C2#context{compile=true}.
-
-';'(#context{here=H, latest=W}=C) ->
-    Clauses = lists:foldr(fun compile_code/2,
-                          {var, 1, 'C'},
-                          H),
-    {M, F} = module_function(W),
-    Codes = [{attribute, 0, module, M},
-             {attribute, 0, export, [{F, 1}, {immed, 2}]},
-             {function, 0, immed, 2,
-              [{clause, 0, [{atom, 0, F}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
-             {function, 0, F, 1, [{clause, 0, [{var, 0, 'C'}], [],
-                                   [Clauses]}]}],
-    io:format("~p\n", [Codes]),
-    {ok, CModule, CBin} = compile:forms(Codes),
-    code:load_binary(CModule, atom_to_list(CModule), CBin),
-    C#context{compile=false}.
-
-'+'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[B+A|S]}.
-
-'-'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[B-A|S]}.
-
-'*'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[B*A|S]}.
-
-'/'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[B/A|S]}.
-
-'.'(#context{s=[H|T]}=C) ->
-    io:format("~w\n", [H]),
-    C#context{s=T}.
-
 interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
     io:format("next: s=~w r=~w h=~w\n", [S, R, H]),
     {Word, C2} = word(C),
@@ -157,3 +181,5 @@ interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
 interpret() ->
     C = #context{},
     interpret(C).
+i() ->
+    interpret().
