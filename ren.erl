@@ -30,6 +30,14 @@ immed(_, _) ->
     code:load_binary(CModule, atom_to_list(CModule), CBin),
     C#context{compile=false}.
 
+'\''(#context{s=S}=C) ->
+    {Word, C2} = word(C),
+    C2#context{s=[list_to_atom(Word)|S]}.
+
+call(#context{s=[Word|S]}=C) ->
+    {M, F} = find(Word, C),
+    apply(M, F, [C#context{s=S}]).
+
 '+'(#context{s=[A,B|S]}=C) ->
     C#context{s=[B+A|S]}.
 
@@ -80,6 +88,8 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+module_function(Word) when is_atom(Word) ->
+    module_function(atom_to_list(Word));
 module_function(Word) ->
     {list_to_atom("forth_" ++ Word),
      list_to_atom(Word)}.
