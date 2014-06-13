@@ -66,6 +66,17 @@ cdr(#context{s=[[]|T]}=C) ->
 cdr(#context{s=[[_|XS]|T]}=C) ->
     C#context{s=[XS|T]}.
 
+'{'(#context{s=S}=C) ->
+    C#context{s=['{'|S]}.
+
+'}'(#context{s=S}=C) ->
+    C#context{s='}'(S, [])}.
+'}'(['{'|T], List) ->
+    [list_to_tuple(List)|T];
+'}'([A|D], List) ->
+    '}'(D, [A|List]).
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
