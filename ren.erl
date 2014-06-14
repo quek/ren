@@ -97,6 +97,10 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
         false ->
             C#context{s=[Str|S]}
     end;
+'"'(C, $\\, Acc) ->
+    {X2,  C2} = key(C),
+    {X3,  C3} = key(C2),
+    '"'(C3, X3, [X2|Acc]);
 '"'(C, X, Acc) ->
     {X2,  C2} = key(C),
     '"'(C2, X2, [X|Acc]).
