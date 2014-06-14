@@ -14,5 +14,6 @@
           here,
           latest,
           d,
-          buffer=""
+          buffer="",
+          source=standard_io
          }).

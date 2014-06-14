@@ -101,6 +101,9 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
     {X2,  C2} = key(C),
     '"'(C2, X2, [X|Acc]).
 
+load(C) ->
+    push_source(C).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 module_function(Word) when is_atom(Word) ->
@@ -123,11 +126,26 @@ find(Word, _) ->
             end
     end.
 
+push_source(#context{s=[File|S], r=R, source=Src, buffer=B}=C) ->
+    {ok, In} = file:open(File, read),
+    C#context{s=S, r=[Src,B|R], source=In, buffer=""}.
+
+pop_source(#context{source=Src, r=[S,B|T]}=C) ->
+    file:close(Src),
+    C#context{source=S, buffer=B, r=T}.
+
+refill(#context{source=Src}=C) ->
+    case io:get_line(Src, "") of
+        eof ->
+            pop_source(C);
+        Line ->
+            C#context{buffer=Line}
+    end.
+
 key(#context{buffer=[X|XS]}=C) ->
     {X, C#context{buffer=XS}};
 key(C) ->
-    [X|XS] = io:get_line(""),
-    {X, C#context{buffer=XS}}.
+    key(refill(C)).
 
 word(C) ->
     case key(C) of
@@ -172,6 +190,10 @@ bye(_) ->
 
 literal_type(X) when is_integer(X) ->
     integer;
+literal_type(X) when is_float(X) ->
+    float;
+literal_type(X) when is_atom(X) ->
+    atom;
 literal_type(X) ->
     case io_lib:char_list(X) of
         true ->
@@ -222,7 +244,6 @@ interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
     end.
 
 interpret() ->
-    C = #context{},
-    interpret(C).
+    interpret(load(#context{s=["ren.fth"]})).
 i() ->
     interpret().
