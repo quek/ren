@@ -4,6 +4,8 @@
 
 immed(';', _) ->
     true;
+immed('"', _) ->
+    true;
 immed(_, _) ->
     false.
 
@@ -51,7 +53,7 @@ call(#context{s=[Word|S]}=C) ->
     C#context{s=[B/A|S]}.
 
 '.'(#context{s=[H|T]}=C) ->
-    io:format("~w\n", [H]),
+    io:format("~p\n", [H]),
     C#context{s=T}.
 
 '['(#context{s=S}=C) ->
@@ -84,7 +86,20 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
 '}'([A|D], List) ->
     '}'(D, [A|List]).
 
-
+'"'(C) ->
+    {X, C2} = key(C),
+    '"'(C2, X, []).
+'"'(#context{s=S, compile=Compile}=C, $", Acc) ->                %" %
+    Str = lists:reverse(Acc),
+    case Compile of
+        true ->
+            comma(Str, C);
+        false ->
+            C#context{s=[Str|S]}
+    end;
+'"'(C, X, Acc) ->
+    {X2,  C2} = key(C),
+    '"'(C2, X2, [X|Acc]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -146,8 +161,8 @@ comma(Literal, #context{here=H}=C) ->
 comma(Module, Function, #context{here=H}=C) ->
     C#context{here=[{Module, Function}|H]}.
 
-lit(Literal, #context{s=[H|T]}=C) ->
-    C#context{s=[Literal,H|T]}.
+lit(Literal, #context{s=S}=C) ->
+    C#context{s=[Literal|S]}.
 
 dup(#context{s=[H|T]}=C) ->
     C#context{s=[H,H|T]}.
@@ -156,7 +171,14 @@ bye(_) ->
     exit("bye").
 
 literal_type(X) when is_integer(X) ->
-    integer.
+    integer;
+literal_type(X) ->
+    case io_lib:char_list(X) of
+        true ->
+            string;
+        _ ->
+            unknow
+    end.
 
 compile_code({lit, Literal}, Acc) ->
     {call, 1,

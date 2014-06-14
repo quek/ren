@@ -314,8 +314,8 @@ t1() ->
 -export([bar/1, baz/1, immed/2]).
 immed(bar, _) ->
     true.
-bar(C) ->
-    C.
+bar(_) ->
+    \"abc\".
 baz(C) ->
     foo:aaa(foo:bbb(123, foo:ccc(C))).
 ",
