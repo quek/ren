@@ -17,16 +17,25 @@ immed(_, _) ->
     C2#context{compile=true}.
 
 ';'(#context{here=H, latest=W}=C) ->
-    Clauses = lists:foldr(fun compile_code/2,
-                          {var, 1, 'C'},
-                          H),
+    Clauses = make_clauses(lists:reverse(H), [], 0),
     {M, F} = module_function(W),
     Codes = [{attribute, 0, module, M},
              {attribute, 0, export, [{F, 1}, {immed, 2}]},
+             {attribute,0,record,
+              {context,
+               [{record_field,1,{atom,1,s},{nil,1}},
+                {record_field,2,{atom,2,r},{nil,2}},
+                {record_field,3,{atom,3,cp}},
+                {record_field,4,{atom,4,compile},{atom,4,false}},
+                {record_field,5,{atom,5,here}},
+                {record_field,6,{atom,6,latest}},
+                {record_field,7,{atom,7,d}},
+                {record_field,8,{atom,8,buffer},{string,8,[]}},
+                {record_field,9,{atom,9,source},{atom,9,standard_io}}]}},
              {function, 0, immed, 2,
               [{clause, 0, [{atom, 0, F}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
-             {function, 0, F, 1, [{clause, 0, [{var, 0, 'C'}], [],
-                                   [Clauses]}]}],
+             {function, 0, F, 1, [{clause, 0, [{var, 0, gen_var(0)}], [],
+                                   Clauses}]}],
     io:format("~p\n", [Codes]),
     {ok, CModule, CBin} = compile:forms(Codes),
     code:load_binary(CModule, atom_to_list(CModule), CBin),
@@ -108,6 +117,18 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
 load(C) ->
     push_source(C).
 
+'='(C) ->                                       %dummy definition
+    C.
+
+%'case'(#context{}=C) ->
+%    case_(C).
+%case_(C) ->
+%    {Word, C2} = word(C),
+%    case_(C, Word, []).
+%case_(C, ";case", Acc) ->
+%    {X, XS} = lists:splitwith(fun(X) -> X =/= ";;" end, lists:reverse(Acc)).
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 module_function(Word) when is_atom(Word) ->
@@ -116,6 +137,8 @@ module_function(Word) ->
     {list_to_atom("forth_" ++ Word),
      list_to_atom(Word)}.
 
+find([H|_]=W, _) when H == $_ ; H > $A - 1, H < $Z + 1 ->
+    {var, list_to_atom(W)};
 find(Word, _) ->
     {M, F} = module_function(Word),
     case erlang:function_exported(M, F, 1) of
@@ -177,6 +200,8 @@ to_number(X) ->
             end
     end.
 
+comma({var, _}=V, #context{here=H}=C) ->
+    C#context{here=[V|H]};
 comma(Literal, #context{here=H}=C) ->
     C#context{here=[{lit, Literal}|H]}.
 
@@ -206,15 +231,54 @@ literal_type(X) ->
             unknow
     end.
 
-compile_code({lit, Literal}, Acc) ->
-    {call, 1,
-     {remote, 1, {atom, 1, ren}, {atom, 1, lit}},
-     [{literal_type(Literal), 1, Literal},
-      Acc]};
-compile_code({Module, Function}, Acc) ->
-    {call, 1,
-     {remote, 1, {atom, 1, Module}, {atom, 1, Function}},
-     [Acc]}.
+gen_var(N) ->
+    list_to_atom("__C__" ++ integer_to_list(N) ++ "__").
+
+make_clauses([], Acc, _) ->
+    lists:flatten(lists:reverse(Acc));
+make_clauses([{ren, '='}, {var, Var}|T], Acc, N) ->
+    C = gen_var(N),
+    SH = gen_var(N+1),
+    ST = gen_var(N+2),
+    C2 = gen_var(N+3),
+    make_clauses(T,
+                 [[{match, 1,
+                    {cons, 1, {var, 1, SH}, {var, 1, ST}},
+                    {record_field, 1, {var, 1, C}, context, {atom, 1, s}}},
+                   {match, 2, {var, 2, Var}, {var, 2, SH}},
+                   {match, 3,
+                    {var, 3, C2},
+                    {record, 3,
+                     {var, 3, C},
+                     context,
+                     [{record_field, 3, {atom, 3, s}, {var, 3, ST}}]}}] | Acc],
+                 N+3);
+make_clauses([{lit, Literal}|T], Acc, N) ->
+    make_clauses(T,
+                 [{match, 0,
+                   {var, 0, gen_var(N+1)},
+                   {call, 0,
+                    {remote, 1, {atom, 1, ren}, {atom, 1, lit}},
+                    [{literal_type(Literal), 1, Literal},
+                     {var, 1, gen_var(N)}]}} | Acc],
+                N + 1);
+make_clauses([{var, Var}|T], Acc, N) ->
+    make_clauses(T,
+                 [{match, 0,
+                   {var, 0, gen_var(N+1)},
+                   {call, 0,
+                    {remote, 1, {atom, 1, ren}, {atom, 1, lit}},
+                    [{var, 1, Var},
+                     {var, 1, gen_var(N)}]}} | Acc],
+                N + 1);
+make_clauses([{Module, Function}|T], Acc, N) ->
+    make_clauses(T,
+                 [{match, 0,
+                   {var, 0, gen_var(N+1)},
+                   {call, 1,
+                    {remote, 1, {atom, 1, Module}, {atom, 1, Function}},
+                    [{var, 1, gen_var(N)}]}} | Acc],
+                 N + 1).
 
 header(#context{s=[Word|S]}=C) ->
     C#context{s=S,
@@ -225,6 +289,21 @@ interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
     io:format("next: s=~w r=~w h=~w\n", [S, R, H]),
     {Word, C2} = word(C),
     case find(Word, C) of
+        {var, Var} ->
+            case Compile of
+                false ->
+                    io:format("var ~s is unknow.\n", [Var]),
+                    interpret(C2);
+                true ->
+                    interpret(comma({var, Var}, C2))
+            end;
+        {Module, Function} ->
+            case {apply(Module, immed, [Function, dummy]), Compile} of
+                {false, true} ->
+                    interpret(comma(Module, Function, C2));
+                _ ->
+                    interpret(apply(Module, Function, [C2]))
+            end;
         error ->
             case to_number(Word) of
                 {ok, N} ->
@@ -237,13 +316,6 @@ interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
                 _ ->
                     io:format("~s is unknow.\n", [Word]),
                     interpret(C2)
-            end;
-        {Module, Function} ->
-            case {apply(Module, immed, [Function, dummy]), Compile} of
-                {false, true} ->
-                    interpret(comma(Module, Function, C2));
-                _ ->
-                    interpret(apply(Module, Function, [C2]))
             end
     end.
 

@@ -312,12 +312,27 @@ mk_forms(S, Acc) ->
 t1() ->
     S = "-module(foo).
 -export([bar/1, baz/1, immed/2]).
+-record(context, {
+          s=[],
+          r=[],
+          cp,
+          compile=false,
+          here,
+          latest,
+          d,
+          buffer=\"\",
+          source=standard_io
+         }).
 immed(bar, _) ->
     true.
 bar(_) ->
-    \"abc\".
-baz(C) ->
-    foo:aaa(foo:bbb(123, foo:ccc(C))).
+    {ok}.
+baz(C1) ->
+    [C1_H|C1_T] = C1#context.s,
+    A = C1_H,
+    C2 = C1#context{s=C1_T},
+    C3 = mmm:fff(A, C2),
+    C3.
 ",
 compile(S).
 

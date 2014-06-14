@@ -32,3 +32,19 @@ Hello.world
 :p swap [ A B ] B A .
 :p dup [ X ] X X .
 :p drop [ X ] .
+
+
+case
+    [ H _ .] ->
+    H
+    dup
+    ;;
+    _ ->
+    false
+;case
+
+: swap
+    A =
+    B =
+    B A
+;
