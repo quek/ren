@@ -6,6 +6,10 @@ immed(';', _) ->
     true;
 immed('"', _) ->                                %"
     true;
+immed('(', _) ->
+    true;
+immed(')', _) ->
+    true;
 immed(_, _) ->
     false.
 
@@ -56,9 +60,11 @@ false(#context{s=S}=C) ->
     {{_, _, Word}, C2} = word(C),
     C2#context{s=[Word|S]}.
 
-call(#context{s=[Word|S]}=C) ->
+call(#context{s=[Word|S]}=C) when is_atom(Word) ->
     M = module_of(Word),
-    apply(M, Word, [C#context{s=S}]).
+    apply(M, Word, [C#context{s=S}]);
+call(#context{s=[Block|S]}=C) ->
+    call_block(Block, C#context{s=S}).
 
 '+'(#context{s=[A,B|S]}=C) ->
     C#context{s=[B+A|S]}.
@@ -142,6 +148,23 @@ load(C) ->
 '->'(C) -> C.                                   %dummy definition
 ';;'(C) -> C.                                   %dummy definition
 ';case'(C) -> C.                                %dummy definition
+
+'('(#context{r=R, compile=Compile, here=H}=C) ->
+         C#context{r=[{Compile, H}|R], compile=true, here=[]}.
+
+')'(C) -> right_paren(C, []).
+
+right_paren(#context{s=S, r=[{Compile, H}|R], here=[]}=C, Acc) ->
+    case Compile of
+        false ->
+            Block = lists:map(fun({_Type, _Line, Value}) -> Value end, Acc),
+            C#context{s=[Block|S], r=R, compile=Compile, here=H};
+        true ->
+            C#context{r=R, compile=Compile, here=[{block, 0, Acc}|H]}
+    end;
+right_paren(#context{here=[H|T]}=C, Acc) ->
+    right_paren(C#context{here=T}, [H|Acc]).
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -329,6 +352,19 @@ make_clauses([{atom, Line, Function}|T], Acc, C, N) ->
                     [{var, Line, C}]}} | Acc],
                  C1,
                  N + 1);
+make_clauses([{block, Line, Block}|T], Acc, C, N) ->
+    C1 = gen_var(N+1),
+    List = block_to_list(Block, Line),
+io:format("block: ~p => ~p\n", [Block, List]),
+    make_clauses(T,
+                 [{match, Line,
+                   {var, Line, C1},
+                   {call, Line,
+                    {remote, Line, {atom, Line, ren}, {atom, Line, lit}},
+                    [List,
+                     {var, Line, C}]}} | Acc],
+                 C1,
+                 N + 1);
 make_clauses([{Type, Line, Value}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
     make_clauses(T,
@@ -341,13 +377,28 @@ make_clauses([{Type, Line, Value}|T], Acc, C, N) ->
                  C1,
                  N + 1).
 
+block_to_list([], Line) ->
+    {nil, Line};
+block_to_list([{block, Line2, Block}|T], Line) ->
+    {cons, Line, block_to_list(Block, Line2), block_to_list(T, Line)};
+block_to_list([H|T], Line) ->
+    {cons, Line, H, block_to_list(T, Line)}.
+
 header(#context{s=[Word|S]}=C) ->
     C#context{s=S,
               latest=Word,
               here=[]}.
 
+call_block([], C) ->
+    C;
+call_block([H|T], C) when is_atom(H) ->
+    Module = module_of(H),
+    call_block(T, apply(Module, H, [C]));
+call_block([H|T], #context{s=S}=C) ->
+    call_block(T, C#context{s=[H|S]}).
+
 interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
-    io:format("s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
+    io:format("d: s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
     case word(C) of
         {{var, _, _}=Var, C2} ->
             case Compile of

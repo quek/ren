@@ -329,17 +329,9 @@ immed(bar, _) ->
 bar(_) ->
     {ok}.
 baz(C1) ->
-    C2 = case hd(C1#context.s) of
-        [H|_] ->
-            aaa:bbb(H);
-        [A, B] ->
-            {A, B};
-        [] ->
-            nil;
-        _ ->
-            error
-    end,
-    C2.
+    C2 = foo:bar(C1),
+    C3 = foo:lit([1, 2], C2),
+    C4 = foo:bar(C3).
 ",
 compile(S).
 
