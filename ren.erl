@@ -15,7 +15,11 @@ immed(_, _) ->
 
 immed(Atom) ->
     M = module_of(Atom),
-    apply(M, immed, [Atom, dummy]).
+    try
+        apply(M, immed, [Atom, dummy])
+    catch
+        error:_ -> false
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nop(C) -> C.
@@ -397,7 +401,6 @@ make_clauses([{atom, Line, Function}|T], Acc, C, N) ->
 make_clauses([{block, Line, Block}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
     List = block_to_list(Block, Line),
-io:format("block: ~p => ~p\n", [Block, List]),
     make_clauses(T,
                  [{match, Line,
                    {var, Line, C1},

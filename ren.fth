@@ -34,9 +34,21 @@
     case
         false
         " failed: ~p\n" [ Form ] format
-        ;;
+    ;;
         _
         nop
+    ;case
+;
+
+: fib
+    = N
+    N 2 =<
+    case
+        true
+        1
+    ;;
+        _
+        N 1- fib N 2 - fib +
     ;case
 ;
 
