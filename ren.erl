@@ -35,7 +35,7 @@ false(#context{s=S}=C) ->
     C2 = header(C1#context{s=[Word|S]}),
     C2#context{compile=true}.
 
-';'(#context{here=H, latest={atom, _, Word}}=C) ->
+';'(#context{here=H, latest={atom, _, Word}, debug=Debug}=C) ->
     {Clauses, _} = make_clauses(lists:reverse(H), [], gen_var(0), 0),
     M = module_of(Word),
     Codes = [{attribute, 0, module, M},
@@ -51,12 +51,13 @@ false(#context{s=S}=C) ->
                 {record_field,7,{atom,7,d}},
                 {record_field,8,{atom,8,buffer},{string,8,[]}},
                 {record_field,9,{atom,9,source},{atom,9,standard_io}},
-                {record_field,10,{atom,10,line},{integer,10,0}}]}},
+                {record_field,10,{atom,10,line},{integer,10,0}},
+                {record_field,11,{atom,11,debug},{integer,11,0}}]}},
              {function, 0, immed, 2,
               [{clause, 0, [{atom, 0, Word}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
              {function, 0, Word, 1, [{clause, 0, [{var, 0, gen_var(0)}], [],
                                    Clauses}]}],
-    io:format("~p\n", [Codes]),
+    Debug > 0 andalso io:format("~p\n", [Codes]),
     {ok, CModule, CBin} = compile:forms(Codes),
     code:load_binary(CModule, atom_to_list(CModule), CBin),
     C#context{compile=false}.
@@ -442,8 +443,8 @@ call_block([H|T], C) when is_atom(H) ->
 call_block([H|T], #context{s=S}=C) ->
     call_block(T, C#context{s=[H|S]}).
 
-interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
-    io:format("d: s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
+interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C) ->
+    Debug > 0 andalso io:format("d: s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
     case word(C) of
         {{var, _, _}=Var, C2} ->
             case Compile of
@@ -469,7 +470,13 @@ interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
             end
     end.
 
-interpret() ->
-    interpret(load(#context{s=["ren.fth"]})).
 i() ->
-    interpret().
+    interpret(load(#context{s=["ren.fth"]})).
+
+d() ->
+    interpret(load(#context{s=["ren.fth"], debug=1})).
+
+test() ->
+    C1 = load(#context{s=["test.fth"]}),
+    C2 = load(C1#context{s=["ren.fth"]}),
+    interpret(C2).

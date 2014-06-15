@@ -322,7 +322,8 @@ t1() ->
           d,
           buffer=\"\",
           source=standard_io,
-          line=0
+          line=0,
+          debug=0
          }).
 immed(bar, _) ->
     true.
