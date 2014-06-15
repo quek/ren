@@ -15,5 +15,6 @@
           latest,
           d,
           buffer="",
-          source=standard_io
+          source=standard_io,
+          line=0
          }).

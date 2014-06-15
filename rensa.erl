@@ -328,11 +328,17 @@ immed(bar, _) ->
 bar(_) ->
     {ok}.
 baz(C1) ->
-    [C1_H|C1_T] = C1#context.s,
-    A = C1_H,
-    C2 = C1#context{s=C1_T},
-    C3 = mmm:fff(A, C2),
-    C3.
+    case hd(C1#context.s) of
+        [H|T] ->
+            X = [H,H|T],
+            aaa:bbb(X);
+        [A, B] ->
+            {A, B};
+        [] ->
+            nil;
+        _ ->
+            error
+    end.
 ",
 compile(S).
 
