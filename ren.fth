@@ -1,8 +1,3 @@
-: hello
-    " Hello World!"
-    .
-;
-
 : 1+
     1 +
 ;
@@ -31,5 +26,22 @@
         [ H _ .]
         H
     ;case
+    .
+;
+
+: assert
+    case
+        true
+        " ok"
+        .
+        ;;
+        false
+        " ng!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+        .
+    ;case
+;
+
+: hello
+    " Hello World!"
     .
 ;

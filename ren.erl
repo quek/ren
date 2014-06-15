@@ -15,6 +15,12 @@ immed(Atom) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+true(#context{s=S}=C) ->
+    C#context{s=[true|S]}.
+
+false(#context{s=S}=C) ->
+    C#context{s=[false|S]}.
+
 ':'(#context{}=C) ->
     {Word, #context{s=S}=C1} = word(C),
     C2 = header(C1#context{s=[Word|S]}),
@@ -67,7 +73,12 @@ call(#context{s=[Word|S]}=C) ->
     C#context{s=[B/A|S]}.
 
 '.'(#context{s=[H|T]}=C) ->
-    io:format("~p\n", [H]),
+    case io_lib:printable_unicode_list(H) of
+        true ->
+            io:format("~ts\n", [H]);
+        false ->
+            io:format("~tp\n", [H])
+    end,
     C#context{s=T}.
 
 '['(#context{s=S}=C) ->
@@ -241,7 +252,9 @@ make_pattern([{var, Line, Var}|T]) ->
 make_pattern([{atom, _, '['}|T]) ->
     make_cons_pattern(T);
 make_pattern([{atom, _, '{'}|T]) ->
-    make_tupple_pattern(T).
+    make_tupple_pattern(T);
+make_pattern([{atom, Line, Atom}|T]) ->
+    {{atom, Line, Atom}, T}.
 
 make_cons_pattern([{atom, Line, ']'}|T]) ->
     {{nil, Line}, T};
