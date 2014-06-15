@@ -347,15 +347,16 @@ make_case_body([H|T], C, N, Acc) ->
 
 make_clauses([], Acc, _, N) ->
     {lists:flatten(lists:reverse(Acc)), N};
-make_clauses([{atom, _, '='}, Var|T], Acc, C, N) ->
+make_clauses([{atom, _, '='}|T], Acc, C, N) ->
+    {Pattern, T2} = make_pattern(T),
     SH = gen_var(N+1),
     ST = gen_var(N+2),
     C2 = gen_var(N+3),
-    make_clauses(T,
+    make_clauses(T2,
                  [[{match, 1,
                     {cons, 1, {var, 1, SH}, {var, 1, ST}},
                     {record_field, 1, {var, 1, C}, context, {atom, 1, s}}},
-                   {match, 2, Var, {var, 2, SH}},
+                   {match, 2, Pattern, {var, 2, SH}},
                    {match, 3,
                     {var, 3, C2},
                     {record, 3,
