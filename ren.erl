@@ -18,6 +18,7 @@ immed(Atom) ->
     apply(M, immed, [Atom, dummy]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+nop(C) -> C.
 
 true(#context{s=S}=C) ->
     C#context{s=[true|S]}.
@@ -66,6 +67,32 @@ call(#context{s=[Word|S]}=C) when is_atom(Word) ->
 call(#context{s=[Block|S]}=C) ->
     call_block(Block, C#context{s=S}).
 
+
+'=='(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B == A|S]}.
+
+'/='(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B /= A|S]}.
+
+'=<'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B =< A|S]}.
+
+'<'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B < A|S]}.
+
+'>='(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B >= A|S]}.
+
+'>'(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B > A|S]}.
+
+'=:='(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B =:= A|S]}.
+
+'=/='(#context{s=[A,B|S]}=C) ->
+    C#context{s=[B =/= A|S]}.
+
+
 '+'(#context{s=[A,B|S]}=C) ->
     C#context{s=[B+A|S]}.
 
@@ -85,6 +112,10 @@ call(#context{s=[Block|S]}=C) ->
         false ->
             io:format("~tp\n", [H])
     end,
+    C#context{s=T}.
+
+format(#context{s=[Args,Format|T]}=C) ->
+    io:format(Format, Args),
     C#context{s=T}.
 
 '['(#context{s=S}=C) ->
@@ -134,7 +165,7 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
 '"'(C, $\\, Acc) ->
     {X2,  C2} = key(C),
     {X3,  C3} = key(C2),
-    '"'(C3, X3, [X2|Acc]);
+    '"'(C3, X3, [backslash_char(X2)|Acc]);
 '"'(C, X, Acc) ->
     {X2,  C2} = key(C),
     '"'(C2, X2, [X|Acc]).
@@ -168,6 +199,17 @@ right_paren(#context{here=[H|T]}=C, Acc) ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+backslash_char($n) ->
+    $\n;
+backslash_char($r) ->
+    $\r;
+backslash_char($t) ->
+    $\t;
+backslash_char($v) ->
+    $\v;
+backslash_char(X) ->
+    X.
 
 module_of(Atom) ->
     case erlang:function_exported(ren, Atom, 1) of

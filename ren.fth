@@ -16,28 +16,27 @@
     = _
 ;
 
-: test_case
+: if
+    = Else
+    = Then
     case
-        [ ]
-        11111
-        22222
-        " empty"
-        ;;
-        [ H _ .]
-        H
+        false
+        Else call
+    ;;
+        _
+        Then call
     ;case
-    .
 ;
 
 : assert
+    = Form
+    Form call
     case
-        true
-        " ok"
-        .
-        ;;
         false
-        " ng!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-        .
+        " failed: ~p\n" [ Form ] format
+        ;;
+        _
+        nop
     ;case
 ;
 
