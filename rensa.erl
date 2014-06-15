@@ -319,10 +319,7 @@ t1() ->
           compile=false,
           here,
           latest,
-          d,
-          buffer=\"\",
-          source=standard_io,
-          line=0,
+          source={standard_io, [], 0},
           debug=0
          }).
 immed(bar, _) ->

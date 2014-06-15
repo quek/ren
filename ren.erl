@@ -48,15 +48,14 @@ false(#context{s=S}=C) ->
                 {record_field,4,{atom,4,compile},{atom,4,false}},
                 {record_field,5,{atom,5,here}},
                 {record_field,6,{atom,6,latest}},
-                {record_field,7,{atom,7,d}},
-                {record_field,8,{atom,8,buffer},{string,8,[]}},
-                {record_field,9,{atom,9,source},{atom,9,standard_io}},
-                {record_field,10,{atom,10,line},{integer,10,0}},
-                {record_field,11,{atom,11,debug},{integer,11,0}}]}},
+                {record_field,7,
+                 {atom,7,source},
+                 {tuple,7,[{atom,7,standard_io},{nil,7},{integer,7,0}]}},
+                {record_field,8,{atom,8,debug},{integer,8,0}}]}},
              {function, 0, immed, 2,
               [{clause, 0, [{atom, 0, Word}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
              {function, 0, Word, 1, [{clause, 0, [{var, 0, gen_var(0)}], [],
-                                   Clauses}]}],
+                                      Clauses}]}],
     Debug > 0 andalso io:format("~p\n", [Codes]),
     {ok, CModule, CBin} = compile:forms(Codes),
     code:load_binary(CModule, atom_to_list(CModule), CBin),
@@ -224,24 +223,24 @@ module_of(Atom) ->
             list_to_atom("ren_" ++ atom_to_list(Atom))
     end.
 
-push_source(#context{s=[File|S], r=R, source=Src, buffer=B}=C) ->
+push_source(#context{s=[File|S], r=R, source=Src}=C) ->
     {ok, In} = file:open(File, read),
-    C#context{s=S, r=[Src,B|R], source=In, buffer=""}.
+    C#context{s=S, r=[Src|R], source={In, [], 0}}.
 
-pop_source(#context{source=Src, r=[S,B|T]}=C) ->
-    file:close(Src),
-    C#context{source=S, buffer=B, r=T}.
+pop_source(#context{source={In, _, _}, r=[Src|T]}=C) ->
+    file:close(In),
+    C#context{source=Src, r=T}.
 
-refill(#context{source=Src}=C) ->
-    case io:get_line(Src, "") of
+refill(#context{source={In, _, Line}}=C) ->
+    case io:get_line(In, "") of
         eof ->
             pop_source(C);
-        Line ->
-            C#context{buffer=Line}
+        Buffer ->
+            C#context{source={In, Buffer, Line + 1}}
     end.
 
-key(#context{buffer=[X|XS]}=C) ->
-    {X, C#context{buffer=XS}};
+key(#context{source={In, [X|XS], Line}}=C) ->
+    {X, C#context{source={In, XS, Line}}};
 key(C) ->
     key(refill(C)).
 
@@ -262,16 +261,16 @@ word(Word, C) ->
             word([X|Word], C2)
     end.
 
-parse_word([H|_]=Word, #context{line=L}) when H == $_ ; H > $A - 1, H < $Z + 1 ->
-    {var, L, list_to_atom(Word)};
-parse_word(Word, #context{line=L}) ->
+parse_word([H|_]=Word, #context{source={_, _, Line}}) when H == $_ ; H > $A - 1, H < $Z + 1 ->
+    {var, Line, list_to_atom(Word)};
+parse_word(Word, #context{source={_, _, Line}}) ->
     case string:to_integer(Word) of
-        {N, []} -> {integer, L, N};
+        {Integer, []} -> {integer, Line, Integer};
         _ ->
             case string:to_float(Word) of
-                {N, []} -> {float, L, N};
+                {Float, []} -> {float, Line, Float};
                 _ ->
-                    {atom, L, list_to_atom(Word)}
+                    {atom, Line, list_to_atom(Word)}
             end
     end.
 
