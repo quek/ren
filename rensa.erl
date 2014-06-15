@@ -321,24 +321,25 @@ t1() ->
           latest,
           d,
           buffer=\"\",
-          source=standard_io
+          source=standard_io,
+          line=0
          }).
 immed(bar, _) ->
     true.
 bar(_) ->
     {ok}.
 baz(C1) ->
-    case hd(C1#context.s) of
-        [H|T] ->
-            X = [H,H|T],
-            aaa:bbb(X);
+    C2 = case hd(C1#context.s) of
+        [H|_] ->
+            aaa:bbb(H);
         [A, B] ->
             {A, B};
         [] ->
             nil;
         _ ->
             error
-    end.
+    end,
+    C2.
 ",
 compile(S).
 

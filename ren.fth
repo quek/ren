@@ -24,9 +24,12 @@
 : test_case
     case
         [ ]
-        " empty" .
+        11111
+        22222
+        " empty"
         ;;
         [ H _ .]
-        H .
+        H
     ;case
+    .
 ;

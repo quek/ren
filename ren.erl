@@ -21,7 +21,7 @@ immed(Atom) ->
     C2#context{compile=true}.
 
 ';'(#context{here=H, latest={atom, _, Word}}=C) ->
-    {Clauses, _} = make_clauses(lists:reverse(H), [], 0),
+    {Clauses, _} = make_clauses(lists:reverse(H), [], gen_var(0), 0),
     M = module_of(Word),
     Codes = [{attribute, 0, module, M},
              {attribute, 0, export, [{Word, 1}, {immed, 2}]},
@@ -228,46 +228,44 @@ gen_var(N) ->
     list_to_atom("#__C__" ++ integer_to_list(N) ++ "__").
 
 
-make_case_clauses([{atom, _, ';case'}|T], N, Acc) ->
+make_case_clauses([{atom, _, ';case'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
-make_case_clauses(Codes, N, Acc) ->
+make_case_clauses(Codes, C, N, Acc) ->
     {Pattern, Codes2} = make_pattern(Codes),
-    {Body, Codes3, N3} = make_case_body(Codes2, N, []),
-io:format("make_case_clauses ~p\n", [{Body, Codes3, N3}]),
-    make_case_clauses(Codes3, N3, [{Pattern, Body}|Acc]).
+    {Body, Codes3, N3} = make_case_body(Codes2, C, N, []),
+    make_case_clauses(Codes3, C, N3,
+                      [{clause, 0, [Pattern], [], Body}|Acc]).
 
 make_pattern([{var, Line, Var}|T]) ->
     {{var, Line, Var}, T};
 make_pattern([{atom, _, '['}|T]) ->
-    make_cons_pattern(T, []);
+    make_cons_pattern(T);
 make_pattern([{atom, _, '{'}|T]) ->
     make_tupple_pattern(T).
 
-make_cons_pattern([{atom, _, ']'}|T], Acc) ->
-    {lists:reverse(Acc), T};
-make_cons_pattern([{atom, _, '.]'}|T], [X,Y|Rest]) ->
-io:format(".] ~p ;;; ~p\n", [[{atom, 0, '.]'}|T], [X,Y|Rest]]),
-    {lists:reverse(Rest) ++ [Y|X], T};
-make_cons_pattern(Codes, Acc) ->
-io:format("make_cons_pattern ~p ;;; ~p\n", [Codes, Acc]),
-    {Pattern, Codes2} = make_pattern(Codes),
-    make_cons_pattern(Codes2, [Pattern|Acc]).
+make_cons_pattern([{atom, Line, ']'}|T]) ->
+    {{nil, Line}, T};
+make_cons_pattern([X,{atom, _, '.]'}|T]) ->
+    {X, T};
+make_cons_pattern(Codes) ->
+    {Car, Codes2} = make_pattern(Codes),
+    {Cdr, Codes3} = make_cons_pattern(Codes2),
+    {{cons, 0, Car, Cdr}, Codes3}.
 
 make_tupple_pattern(X) ->
     X.
 
-make_case_body([{atom, _, ';;'}|T], N, Acc) ->
-    {lists:reverse(Acc), T, N};
-make_case_body([{atom, _, ';case'}|_]=Codes, N, Acc) ->
-    {lists:reverse(Acc), Codes, N};
-make_case_body([H|T], N, Acc) ->
-    {Clause, N2} = make_clauses([H], [], N),
-    make_case_body(T, N2, [Clause|Acc]).
+make_case_body([{atom, _, ';;'}|T], _, N, Acc) ->
+    {lists:flatten(lists:reverse(Acc)), T, N};
+make_case_body([{atom, _, ';case'}|_]=Codes, _, N, Acc) ->
+    {lists:flatten(lists:reverse(Acc)), Codes, N};
+make_case_body([H|T], C, N, Acc) ->
+    {Clause, N2} = make_clauses([H], [], C, N),
+    make_case_body(T, gen_var(N2), N2, [Clause|Acc]).
 
-make_clauses([], Acc, N) ->
-    {lists:flatten(lists:reverse([{var, 0, gen_var(N)}|Acc])), N};
-make_clauses([{atom, _, '='}, Var|T], Acc, N) ->
-    C = gen_var(N),
+make_clauses([], Acc, _, N) ->
+    {lists:flatten(lists:reverse(Acc)), N};
+make_clauses([{atom, _, '='}, Var|T], Acc, C, N) ->
     SH = gen_var(N+1),
     ST = gen_var(N+2),
     C2 = gen_var(N+3),
@@ -282,13 +280,14 @@ make_clauses([{atom, _, '='}, Var|T], Acc, N) ->
                      {var, 3, C},
                      context,
                      [{record_field, 3, {atom, 3, s}, {var, 3, ST}}]}}] | Acc],
+                 C2,
                  N+3);
-make_clauses([{atom, _, 'case'}|T], Acc, N) ->
-    C = gen_var(N),
+make_clauses([{atom, Line, 'case'}|T], Acc, C, N) ->
     SH = gen_var(N+1),
     ST = gen_var(N+2),
     C2 = gen_var(N+3),
-    {CaseClauses, T2, N2} = make_case_clauses(T, N+3, []),
+    {CaseClauses, T2, N2} = make_case_clauses(T, C2, N+3, []),
+    C3 = gen_var(N2 + 1),
     make_clauses(T2,
                  [[{match, 1,
                     {cons, 1, {var, 1, SH}, {var, 1, ST}},
@@ -299,30 +298,35 @@ make_clauses([{atom, _, 'case'}|T], Acc, N) ->
                      {var, 3, C},
                      context,
                      [{record_field, 3, {atom, 3, s}, {var, 3, ST}}]}},
-                   {'case', 0,
-                         {call,1,
-                          {atom,1,hd},
-                          [{record_field,1,{var,1,C2},context,{atom,1,s}}]},
-                         CaseClauses}] | Acc],
-                 N2);
-make_clauses([{atom, Line, Function}|T], Acc, N) ->
+                   {match, Line,
+                    {var, Line, C3},
+                    {'case', 0,
+                          {var, 0, SH},
+                          CaseClauses}}] | Acc],
+                 C3,
+                 N2+1);
+make_clauses([{atom, Line, Function}|T], Acc, C, N) ->
+    C1 = gen_var(N+1),
     Module = module_of(Function),
     make_clauses(T,
                  [{match, Line,
-                   {var, Line, gen_var(N+1)},
+                   {var, Line, C1},
                    {call, Line,
                     {remote, Line, {atom, Line, Module}, {atom, Line, Function}},
-                    [{var, Line, gen_var(N)}]}} | Acc],
+                    [{var, Line, C}]}} | Acc],
+                 C1,
                  N + 1);
-make_clauses([{Type, Line, Value}|T], Acc, N) ->
+make_clauses([{Type, Line, Value}|T], Acc, C, N) ->
+    C1 = gen_var(N+1),
     make_clauses(T,
                  [{match, 0,
-                   {var, 0, gen_var(N+1)},
+                   {var, 0, C1},
                    {call, 0,
                     {remote, 1, {atom, 1, ren}, {atom, 1, lit}},
                     [{Type, Line, Value},
-                     {var, 1, gen_var(N)}]}} | Acc],
-                N + 1).
+                     {var, 1, C}]}} | Acc],
+                 C1,
+                 N + 1).
 
 header(#context{s=[Word|S]}=C) ->
     C#context{s=S,
@@ -330,7 +334,7 @@ header(#context{s=[Word|S]}=C) ->
               here=[]}.
 
 interpret(#context{s=S, r=R, compile=Compile, here=H}=C) ->
-    io:format("next: s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
+    io:format("s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
     case word(C) of
         {{var, _, _}=Var, C2} ->
             case Compile of
