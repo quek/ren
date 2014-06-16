@@ -180,8 +180,6 @@ load(C) ->
 '='(C) -> C.                                    %dummy definition
 
 'case'(C) -> C.                                 %dummy definition
-'->'(C) -> C.                                   %dummy definition
-';;'(C) -> C.                                   %dummy definition
 ';case'(C) -> C.                                %dummy definition
 
 '('(#context{r=R, compile=Compile, here=H}=C) ->
