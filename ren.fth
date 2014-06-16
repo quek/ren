@@ -21,10 +21,9 @@
     = Then
     case
         false
-        Else call
-    ;;
+        ( Else call )
         _
-        Then call
+        ( Then call )
     ;case
 ;
 
@@ -33,10 +32,9 @@
     Form call
     case
         false
-        " failed: ~p\n" [ Form ] format
-    ;;
+        ( " failed: ~p\n" [ Form ] format )
         _
-        nop
+        ( nop )
     ;case
 ;
 
@@ -45,10 +43,9 @@
     N 2 =<
     case
         true
-        1
-    ;;
+        ( 1 )
         _
-        N 1- fib N 2 - fib +
+        ( N 1- fib N 2 - fib + )
     ;case
 ;
 

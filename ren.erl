@@ -311,9 +311,9 @@ gen_var(N) ->
 make_case_clauses([{atom, _, ';case'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
 make_case_clauses(Codes, C, N, Acc) ->
-    {Pattern, Codes2} = make_pattern(Codes),
-    {Body, Codes3, N3} = make_case_body(Codes2, C, N, []),
-    make_case_clauses(Codes3, C, N3,
+    {Pattern, [{block, _, Block}|Codes2]} = make_pattern(Codes),
+    {Body, N2} = make_clauses(Block, [], C, N),
+    make_case_clauses(Codes2, C, N2,
                       [{clause, 0, [Pattern], [], Body}|Acc]).
 
 make_pattern([{var, Line, Var}|T]) ->
@@ -336,14 +336,6 @@ make_cons_pattern(Codes) ->
 
 make_tupple_pattern(X) ->
     X.
-
-make_case_body([{atom, _, ';;'}|T], _, N, Acc) ->
-    {lists:flatten(lists:reverse(Acc)), T, N};
-make_case_body([{atom, _, ';case'}|_]=Codes, _, N, Acc) ->
-    {lists:flatten(lists:reverse(Acc)), Codes, N};
-make_case_body([H|T], C, N, Acc) ->
-    {Clause, N2} = make_clauses([H], [], C, N),
-    make_case_body(T, gen_var(N2), N2, [Clause|Acc]).
 
 make_clauses([], Acc, _, N) ->
     {lists:flatten(lists:reverse(Acc)), N};

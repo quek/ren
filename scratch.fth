@@ -7,12 +7,11 @@ test ( then ) ( else ) if
 : test_case
     case
         [ ]
-        11111
-        22222
-        " empty"
-        ;;
+        ( 11111
+          22222
+          " empty" )
         [ H _ .]
-        H
+        ( H )
     ;case
     .
 ;
