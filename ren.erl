@@ -338,7 +338,11 @@ make_tupple_pattern(X) ->
     X.
 
 make_clauses([], Acc, _, N) ->
-    {lists:flatten(lists:reverse(Acc)), N};
+    Clauses = lists:flatten(lists:reverse(Acc)),
+    %% :2: Warning: variable '#__C__2__' is unused が出ないように
+    %% 最後の match を削除する。
+    [{match, _, _, LastClause}|T] = lists:reverse(Clauses),
+    {lists:reverse([LastClause|T]), N-1};
 make_clauses([{atom, _, '='}|T], Acc, C, N) ->
     {Pattern, T2} = make_pattern(T),
     SH = gen_var(N+1),
