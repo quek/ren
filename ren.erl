@@ -61,10 +61,20 @@ false(#context{s=S}=C) ->
     code:load_binary(CModule, atom_to_list(CModule), CBin),
     C#context{compile=false}.
 
+'+compile'(C) ->
+    C#context{compile=true}.
+
+'-compile'(C) ->
+    C#context{compile=false}.
+
 '\''(#context{s=S}=C) ->
     {{_, _, Word}, C2} = word(C),
     C2#context{s=[Word|S]}.
 
+call(#context{s=[{Module, Function, Arity}|S]}=C) ->
+    {Args, Rest} = lists:split(Arity, S),
+    Ret = apply(Module, Function, Args),
+    C#context{s=[Ret|Rest]};
 call(#context{s=[Word|S]}=C) when is_atom(Word) ->
     M = module_of(Word),
     apply(M, Word, [C#context{s=S}]);
@@ -117,6 +127,10 @@ call(#context{s=[Block|S]}=C) ->
             io:format("~tp\n", [H])
     end,
     C#context{s=T}.
+
+'.s'(#context{s=S}=C) ->
+    io:format("~tp\n", [S]),
+    C.
 
 format(#context{s=[Args,Format|T]}=C) ->
     io:format(Format, Args),
@@ -268,16 +282,31 @@ parse_word(Word, #context{source={_, _, Line}}) ->
             case string:to_float(Word) of
                 {Float, []} -> {float, Line, Float};
                 _ ->
-                    {atom, Line, list_to_atom(Word)}
+                    case erlang_function(Word) of
+                        {_Module, _Function, _Arity}=ErlangFunction ->
+                            {erlang, Line, ErlangFunction};
+                        _ ->
+                            {atom, Line, list_to_atom(Word)}
+                    end
             end
+    end.
+
+erlang_function(Word) ->
+    case re:run(Word, "\\A(.+):(.+)/(.+)\\z", [{capture, [1, 2, 3], list}]) of
+        {match, [Module, Function, Arity]} ->
+            case string:to_integer(Arity) of
+                {Int, []} ->
+                    {list_to_atom(Module), list_to_atom(Function), Int};
+                _ ->
+                    false
+            end;
+        _ ->
+            false
     end.
 
 
 comma(X, #context{here=H}=C) ->
     C#context{here=[X|H]}.
-
-comma(Module, Function, #context{here=H}=C) ->
-    C#context{here=[{Module, Function}|H]}.
 
 lit(Literal, #context{s=S}=C) ->
     C#context{s=[Literal|S]}.
@@ -405,6 +434,31 @@ make_clauses([{block, Line, Block}|T], Acc, C, N) ->
                      {var, Line, C}]}} | Acc],
                  C1,
                  N + 1);
+make_clauses([{erlang, Line, {Module, Function, Arity}}|T], Acc, C, N) ->
+    Args = gen_var(N+1),
+    Rest = gen_var(N+2),
+    C1 = gen_var(N+3),
+    make_clauses(T,
+                 [[{match, Line,
+                    {tuple, Line, [{var, Line, Args}, {var, Line, Rest}]},
+                    {call, Line,
+                     {remote, Line, {atom, Line, lists}, {atom, Line, split}},
+                     [{integer, Line, Arity},
+                      {record_field, Line, {var, Line, C}, context, {atom, Line, s}}]}},
+                   {match, Line,
+                    {var, Line, C1},
+                    {record, Line,
+                     {var, Line, C},
+                     context,
+                     [{record_field, Line,
+                       {atom, Line, s},
+                       {cons, Line,
+                        {call, Line,
+                         {atom, Line, apply},
+                         [{atom, Line, Module}, {atom, Line, Function}, {var, Line, Args}]},
+                        {var, Line, Rest}}}]}}] | Acc],
+                 C1,
+                 N + 3);
 make_clauses([{Type, Line, Value}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
     make_clauses(T,
@@ -431,6 +485,10 @@ header(#context{s=[Word|S]}=C) ->
 
 call_block([], C) ->
     C;
+call_block([{Module, Function, Arity}|T], #context{s=S}=C) ->
+    {Args, Rest} = lists:split(Arity, S),
+    Ret = apply(Module, Function, Args),
+    call_block(T, C#context{s=[Ret|Rest]});
 call_block([H|T], C) when is_atom(H) ->
     Module = module_of(H),
     call_block(T, apply(Module, H, [C]));
@@ -454,6 +512,13 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C) ->
                     interpret(C2#context{s=[N|S]});
                 true ->
                     interpret(comma(Number, C2))
+            end;
+        {{erlang, _, {_Module, _Function, _Arity}=F}=ErlangFunction, #context{s=S}=C2} ->
+            case Compile of
+                true ->
+                    interpret(comma(ErlangFunction, C2));
+                _ ->
+                    interpret(call(C2#context{s=[F|S]}))
             end;
         {{atom, _, A}=Atom, #context{s=S}=C2} ->
             case {immed(A), Compile} of
