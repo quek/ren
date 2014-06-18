@@ -73,7 +73,7 @@ false(#context{s=S}=C) ->
 
 call(#context{s=[{Module, Function, Arity}|S]}=C) ->
     {Args, Rest} = lists:split(Arity, S),
-    Ret = apply(Module, Function, Args),
+    Ret = apply(Module, Function, lists:reverse(Args)),
     C#context{s=[Ret|Rest]};
 call(#context{s=[Word|S]}=C) when is_atom(Word) ->
     M = module_of(Word),
@@ -204,15 +204,53 @@ load(C) ->
 right_paren(#context{s=S, r=[{Compile, H}|R], here=[]}=C, Acc) ->
     case Compile of
         false ->
-            Block = lists:map(fun({_Type, _Line, Value}) -> Value end, Acc),
+            Block = right_paren_collect(Acc),
             C#context{s=[Block|S], r=R, compile=Compile, here=H};
         true ->
             C#context{r=R, compile=Compile, here=[{block, 0, Acc}|H]}
     end;
 right_paren(#context{here=[H|T]}=C, Acc) ->
     right_paren(C#context{here=T}, [H|Acc]).
+right_paren_collect([]) ->
+    [];
+right_paren_collect([{block, _, Block}|T]) ->
+    [right_paren_collect(Block)|right_paren_collect(T)];
+right_paren_collect([{_, _, Value}|T]) ->
+    [Value|right_paren_collect(T)].
 
 
+
+
+'>fun/0'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun() ->
+                         #context{s=[Result|_]} = call(#context{s=[Block]}),
+                         Result
+                 end | T]}.
+'>fun/1'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun(Arg1) ->
+                         #context{s=[Result|_]} = call(#context{s=[Block, Arg1]}),
+                         Result
+                 end | T]}.
+'>fun/2'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun(Arg1, Arg2) ->
+                         #context{s=[Result|_]} = call(#context{s=[Block, Arg2, Arg1]}),
+                         Result
+                 end | T]}.
+'>fun/3'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun(Arg1, Arg2, Arg3) ->
+                         #context{s=[Result|_]} = call(#context{s=[Block, Arg3, Arg2, Arg1]}),
+                         Result
+                 end | T]}.
+'>fun/4'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun(Arg1, Arg2, Arg3, Arg4) ->
+                         #context{s=[Result|_]} = call(#context{s=[Block, Arg4, Arg3, Arg2, Arg1]}),
+                         Result
+                 end | T]}.
+'>fun/5'(#context{s=[Block|T]}=C) ->
+    C#context{s=[fun(Arg1, Arg2, Arg3, Arg4, Arg5) ->
+                         #context{s=[Result|_]} = call(#context{s=[Block, Arg5, Arg4, Arg3, Arg2, Arg1]}),
+                         Result
+                 end | T]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -455,7 +493,11 @@ make_clauses([{erlang, Line, {Module, Function, Arity}}|T], Acc, C, N) ->
                        {cons, Line,
                         {call, Line,
                          {atom, Line, apply},
-                         [{atom, Line, Module}, {atom, Line, Function}, {var, Line, Args}]},
+                         [{atom, Line, Module},
+                          {atom, Line, Function},
+                          {call, Line,
+                           {remote, Line, {atom, Line, lists}, {atom, Line, reverse}},
+                           [{var, Line, Args}]}]},
                         {var, Line, Rest}}}]}}] | Acc],
                  C1,
                  N + 3);
@@ -487,7 +529,7 @@ call_block([], C) ->
     C;
 call_block([{Module, Function, Arity}|T], #context{s=S}=C) ->
     {Args, Rest} = lists:split(Arity, S),
-    Ret = apply(Module, Function, Args),
+    Ret = apply(Module, Function, lists:reverse(Args)),
     call_block(T, C#context{s=[Ret|Rest]});
 call_block([H|T], C) when is_atom(H) ->
     Module = module_of(H),

@@ -13,4 +13,9 @@
 ;
 ( [ 3 2 1 ] my-erlang-erverse [ 1 2 3 ] == ) assert
 
+
+( ( 2 * ) >fun/1 [ 1 2 3 ]  lists:map/2 [ 2 4 6 ] == ) assert
+
+( ( + ) >fun/2 0 [ 1 2 3 ] lists:foldl/3 6 == ) assert
+
 " ok" .
