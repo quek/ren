@@ -223,34 +223,49 @@ right_paren_collect([{_, _, Value}|T]) ->
 
 '>fun/0'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun() ->
-                         #context{s=[Result|_]} = call(#context{s=[Block]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block]}))
                  end | T]}.
 '>fun/1'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun(Arg1) ->
-                         #context{s=[Result|_]} = call(#context{s=[Block, Arg1]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block, Arg1]}))
                  end | T]}.
 '>fun/2'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun(Arg1, Arg2) ->
-                         #context{s=[Result|_]} = call(#context{s=[Block, Arg2, Arg1]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block, Arg2, Arg1]}))
                  end | T]}.
 '>fun/3'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3) ->
-                         #context{s=[Result|_]} = call(#context{s=[Block, Arg3, Arg2, Arg1]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block, Arg3, Arg2, Arg1]}))
                  end | T]}.
 '>fun/4'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3, Arg4) ->
-                         #context{s=[Result|_]} = call(#context{s=[Block, Arg4, Arg3, Arg2, Arg1]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block, Arg4, Arg3, Arg2, Arg1]}))
                  end | T]}.
 '>fun/5'(#context{s=[Block|T]}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3, Arg4, Arg5) ->
-                         #context{s=[Result|_]} = call(#context{s=[Block, Arg5, Arg4, Arg3, Arg2, Arg1]}),
-                         Result
+                         handle_fun_result(call(#context{s=[Block, Arg5, Arg4, Arg3, Arg2, Arg1]}))
                  end | T]}.
+handle_fun_result(#context{s=[]}) ->
+    [];
+handle_fun_result(#context{s=[Result]}) ->
+    Result;
+handle_fun_result(#context{s=S}) ->
+    S.
+
+
+
+spawn(C) ->
+    #context{s=[Fun|T]}=C1 = '>fun/0'(C),
+    C1#context{s=[erlang:spawn(Fun)|T]}.
+
+send(#context{s=[Msg,Dest|T]}=C) ->
+    erlang:send(Dest, Msg),
+    C#context{s=T}.
+
+'receive'(C) -> C.                              %dummy definition
+'after'(C) -> C.                                %dummy definition
+';receive'(C) -> C.                             %dummy definition
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

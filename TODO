@@ -1,0 +1,4 @@
+* 引数のパターンマッチ
+* タプルの make_pattern
+* = case の実行モードでも動き
+* ! receive

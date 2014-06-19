@@ -10,3 +10,15 @@
     (( [] _ Acc ))
     Acc reverse
 ;
+
+
+pid msg send
+
+receive
+  pattern1
+  ( block1 )
+  pattern2
+  ( block2 )
+after 6000
+  ( block )
+;receive
