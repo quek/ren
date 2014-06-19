@@ -18,4 +18,28 @@
 
 ( ( + ) >fun/2 0 [ 1 2 3 ] lists:foldl/3 6 == ) assert
 
+: test-receive
+    receive
+        { a X Pid } ( Pid X send test-receive )
+        { b X Pid } ( Pid X X * send )
+    ;receive
+;
+
+: test-send
+    ' test-receive spawn
+    dup
+    { ' a 3 self } send
+    { ' b 3 self } send
+    {
+        receive
+          X ( X )
+        ;receive
+        receive
+          Y ( Y )
+        ;receive
+    }
+;
+
+( test-send { 3 9 } == ) assert
+
 " ok" .

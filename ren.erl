@@ -4,6 +4,8 @@
 
 immed(';', _) ->
     true;
+immed('\'', _) ->
+    true;
 immed('"', _) ->                                %"
     true;
 immed('(', _) ->
@@ -67,9 +69,14 @@ false(#context{s=S}=C) ->
 '-compile'(C) ->
     C#context{compile=false}.
 
-'\''(#context{s=S}=C) ->
-    {{_, _, Word}, C2} = word(C),
-    C2#context{s=[Word|S]}.
+'\''(#context{s=S, here=H, compile=Compile}=C) ->
+    {{_, Line, Word}=W, C2} = word(C),
+    case Compile of
+        true ->
+            C2#context{here=[{atom, Line, car}, {block, Line, [W]}|H]};
+        false ->
+            C2#context{s=[Word|S]}
+    end.
 
 call(#context{s=[{Module, Function, Arity}|S]}=C) ->
     {Args, Rest} = lists:split(Arity, S),
@@ -253,6 +260,8 @@ handle_fun_result(#context{s=S}) ->
     S.
 
 
+'self'(#context{s=S}=C) ->
+    C#context{s=[self()|S]}.
 
 spawn(C) ->
     #context{s=[Fun|T]}=C1 = '>fun/0'(C),
@@ -387,6 +396,16 @@ literal_type(X) ->
 gen_var(N) ->
     list_to_atom("#__C__" ++ integer_to_list(N) ++ "__").
 
+make_receive_clauses([{atom, _, ';receive'}|T], _, N, Acc) ->
+    {lists:reverse(Acc), T, N};
+make_receive_clauses([{atom, _, 'after'}, Milliseconds, Block|T], C, N, Acc) ->
+    {Body, N1} = make_clauses(Block, [], C, N),
+    {lists:reverse(Acc), Milliseconds, Body, T, N1};
+make_receive_clauses(Codes, C, N, Acc) ->
+    {Pattern, [{block, _, Block}|Codes2]} = make_pattern(Codes),
+    {Body, N2} = make_clauses(Block, [], C, N),
+    make_receive_clauses(Codes2, C, N2,
+                      [{clause, 0, [Pattern], [], Body}|Acc]).
 
 make_case_clauses([{atom, _, ';case'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
@@ -400,8 +419,9 @@ make_pattern([{var, Line, Var}|T]) ->
     {{var, Line, Var}, T};
 make_pattern([{atom, _, '['}|T]) ->
     make_cons_pattern(T);
-make_pattern([{atom, _, '{'}|T]) ->
-    make_tupple_pattern(T);
+make_pattern([{atom, Line, '{'}|T]) ->
+    {Elements, T1} = make_tupple_pattern(T, []),
+    {{tuple, Line, Elements}, T1};
 make_pattern([{atom, Line, Atom}|T]) ->
     {{atom, Line, Atom}, T}.
 
@@ -414,8 +434,11 @@ make_cons_pattern(Codes) ->
     {Cdr, Codes3} = make_cons_pattern(Codes2),
     {{cons, 0, Car, Cdr}, Codes3}.
 
-make_tupple_pattern(X) ->
-    X.
+make_tupple_pattern([{atom, _, '}'}|T], Acc) ->
+    {lists:reverse(Acc), T};
+make_tupple_pattern(Codes, Acc) ->
+    {Element, Codes1} = make_pattern(Codes),
+    make_tupple_pattern(Codes1, [Element|Acc]).
 
 make_clauses([], Acc, _, N) ->
     Clauses = lists:flatten(lists:reverse(Acc)),
@@ -441,6 +464,19 @@ make_clauses([{atom, _, '='}|T], Acc, C, N) ->
                      [{record_field, 3, {atom, 3, s}, {var, 3, ST}}]}}] | Acc],
                  C2,
                  N+3);
+make_clauses([{atom, Line, 'receive'}|T], Acc, C, N) ->
+    {Receive, T2, N2} =
+        case make_receive_clauses(T, C, N, []) of
+            {ReceiveClauses, T1, N1} ->
+                {{'receive', Line, ReceiveClauses}, T1, N1};
+            {ReceiveClauses, Milliseconds, AfterClauses, T1, N1} ->
+                {{'receive', Line, ReceiveClauses, Milliseconds, AfterClauses}, T1, N1}
+        end,
+    C3 = gen_var(N2 + 1),
+    make_clauses(T2,
+                 [{match, Line, {var, Line, C3}, Receive}|Acc],
+                 C3,
+                 N2 + 1);
 make_clauses([{atom, Line, 'case'}|T], Acc, C, N) ->
     SH = gen_var(N+1),
     ST = gen_var(N+2),

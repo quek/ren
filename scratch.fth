@@ -12,13 +12,38 @@
 ;
 
 
+( foo bar ) spawn
+' baz spawn
+
 pid msg send
 
 receive
-  pattern1
-  ( block1 )
-  pattern2
-  ( block2 )
+    pattern1
+    ( block1 )
+    pattern2
+    ( block2 )
 after 6000
-  ( block )
+    ( block )
 ;receive
+
+
+
+
+
+
+
+
+
+: test-receive
+    receive
+        { a X Pid } ( Pid X send )
+    ;receive
+;
+
+: test-send
+    ' test-receive spawn
+    { ' a 777 self } send
+    receive
+        X ( X )
+    ;receive
+;

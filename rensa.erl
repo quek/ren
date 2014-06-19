@@ -328,8 +328,11 @@ bar(_) ->
     {ok}.
 baz(C1) ->
     C2 = foo:bar(C1),
-    {Args, Rest} = lists:split(7, C2#context.s),
-    C3 = C2#context{s=[apply(lists, reverse, lists:reverse(Args))|Rest]},
+    C3 = receive
+        { A } -> foo:bar(A, C2);
+        _ -> bar:bar(C2),
+             bar:bar(C2)
+    end,
     C4 = foo:bar(C3).
 ",
 compile(S).
