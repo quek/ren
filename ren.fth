@@ -39,6 +39,21 @@
     ;case
 ;
 
+: reverse [] reverse' ;
+: reverse'
+    (( [] Acc )) Acc
+    (( [ H T .] Acc )) T [ H Acc .] reverse'
+;
+
+: map [] map' ;
+: map'
+    (( [] _ Acc ))
+    Acc reverse
+    (( [ H T .] F Acc ))
+    T F [ H F call Acc .] map'
+;
+
+
 : fib
     = N
     N 2 =<

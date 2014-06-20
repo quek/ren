@@ -415,6 +415,8 @@ make_case_clauses(Codes, C, N, Acc) ->
 
 make_pattern([{var, Line, Var}|T]) ->
     {{var, Line, Var}, T};
+make_pattern([{atom, Line, '[]'}|T]) ->
+    {{nil, Line}, T};
 make_pattern([{atom, _, '['}|T]) ->
     make_cons_pattern(T);
 make_pattern([{atom, Line, '{'}|T]) ->
@@ -496,7 +498,7 @@ end_make_one_clause(Codes, Acc, N) ->
 
 make_one_clause([], Acc, _, N) ->
     end_make_one_clause([], Acc, N);
-make_one_clause([{atom, _, '))'}|T], Acc, _, N) ->
+make_one_clause([{atom, _, '(('}|_]=T, Acc, _, N) ->
     end_make_one_clause(T, Acc, N);
 make_one_clause([{atom, _, '='}|T], Acc, C, N) ->
     {Pattern, T2} = make_pattern(T),

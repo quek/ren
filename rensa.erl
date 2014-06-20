@@ -331,14 +331,8 @@ baz(#context{s=[A,B|T]}=C) ->
     A,
     B,
     C1 = foo:bar(C0);
-baz(#context{s=[[A,B]|_]}=C) ->
-    C1 = foo:bar(A, B, C);
-baz(#context{s=[{A,B}|_]}=C) ->
-    C1 = foo:bar(A, B, C);
-baz(#context{s=[A|_]}=C) ->
-    C1 = foo:bar(A, C);
-baz(C) ->
-    C.
+baz(#context{s=[[]|_]}=C) ->
+    foo:bar(C).
 ",
 compile(S).
 

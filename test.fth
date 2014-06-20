@@ -40,4 +40,9 @@
 ;
 ( test-send { 3 9 } == ) assert
 
+
+( [ 1 2 3 ] reverse [ 3 2 1 ] == ) assert
+
+( [ 1 2 3 ] ( 2 * ) map [ 2 4 6 ] == ) assert
+
 " ok" .
