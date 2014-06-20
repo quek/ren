@@ -24,7 +24,6 @@
         { b X Pid } ( Pid X X * send )
     ;receive
 ;
-
 : test-send
     ' test-receive spawn
     dup
@@ -39,7 +38,6 @@
         ;receive
     }
 ;
-
 ( test-send { 3 9 } == ) assert
 
 " ok" .

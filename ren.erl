@@ -37,12 +37,13 @@ false(#context{s=S}=C) ->
     C2 = header(C1#context{s=[Word|S]}),
     C2#context{compile=true}.
 
-';'(#context{here=H, latest={atom, _, Word}, debug=Debug}=C) ->
-    {Clauses, _} = make_clauses(lists:reverse(H), [], gen_var(0), 0),
+';'(#context{here=H, latest={atom, Line, Word}, debug=Debug}=C) ->
+    C0 = gen_var(0),
+    Clauses = make_clauses(lists:reverse(H), C0, 0),
     M = module_of(Word),
-    Codes = [{attribute, 0, module, M},
-             {attribute, 0, export, [{Word, 1}, {immed, 2}]},
-             {attribute,0,record,
+    Codes = [{attribute, Line, module, M},
+             {attribute, Line, export, [{Word, 1}, {immed, 2}]},
+             {attribute,Line,record,
               {context,
                [{record_field,1,{atom,1,s},{nil,1}},
                 {record_field,2,{atom,2,r},{nil,2}},
@@ -54,10 +55,9 @@ false(#context{s=S}=C) ->
                  {atom,7,source},
                  {tuple,7,[{atom,7,standard_io},{nil,7},{integer,7,0}]}},
                 {record_field,8,{atom,8,debug},{integer,8,0}}]}},
-             {function, 0, immed, 2,
-              [{clause, 0, [{atom, 0, Word}, {var, 0, '_'}], [], [{atom, 0, false}]}]},
-             {function, 0, Word, 1, [{clause, 0, [{var, 0, gen_var(0)}], [],
-                                      Clauses}]}],
+             {function, Line, immed, 2,
+              [{clause, Line, [{atom, Line, Word}, {var, Line, '_'}], [], [{atom, Line, false}]}]},
+             {function, Line, Word, 1, Clauses}],
     Debug > 0 andalso io:format("~p\n", [Codes]),
     {ok, CModule, CBin} = compile:forms(Codes),
     code:load_binary(CModule, atom_to_list(CModule), CBin),
@@ -136,7 +136,8 @@ call(#context{s=[Block|S]}=C) ->
     C#context{s=T}.
 
 '.s'(#context{s=S}=C) ->
-    io:format("~tp\n", [S]),
+    print_list(S),
+    io:nl(),
     C.
 
 format(#context{s=[Args,Format|T]}=C) ->
@@ -373,9 +374,6 @@ comma(X, #context{here=H}=C) ->
 lit(Literal, #context{s=S}=C) ->
     C#context{s=[Literal|S]}.
 
-dup(#context{s=[H|T]}=C) ->
-    C#context{s=[H,H|T]}.
-
 bye(_) ->
     exit("bye").
 
@@ -399,11 +397,11 @@ gen_var(N) ->
 make_receive_clauses([{atom, _, ';receive'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
 make_receive_clauses([{atom, _, 'after'}, Milliseconds, Block|T], C, N, Acc) ->
-    {Body, N1} = make_clauses(Block, [], C, N),
+    {Body, _, N1} = make_one_clause(Block, [], C, N),
     {lists:reverse(Acc), Milliseconds, Body, T, N1};
 make_receive_clauses(Codes, C, N, Acc) ->
     {Pattern, [{block, _, Block}|Codes2]} = make_pattern(Codes),
-    {Body, N2} = make_clauses(Block, [], C, N),
+    {Body, _, N2} = make_one_clause(Block, [], C, N),
     make_receive_clauses(Codes2, C, N2,
                       [{clause, 0, [Pattern], [], Body}|Acc]).
 
@@ -411,7 +409,7 @@ make_case_clauses([{atom, _, ';case'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
 make_case_clauses(Codes, C, N, Acc) ->
     {Pattern, [{block, _, Block}|Codes2]} = make_pattern(Codes),
-    {Body, N2} = make_clauses(Block, [], C, N),
+    {Body, _, N2} = make_one_clause(Block, [], C, N),
     make_case_clauses(Codes2, C, N2,
                       [{clause, 0, [Pattern], [], Body}|Acc]).
 
@@ -440,18 +438,72 @@ make_tupple_pattern(Codes, Acc) ->
     {Element, Codes1} = make_pattern(Codes),
     make_tupple_pattern(Codes1, [Element|Acc]).
 
-make_clauses([], Acc, _, N) ->
+
+make_clauses(Codes, C, N) ->
+    {Arg, Codes1, N1} = make_clause_arg(Codes, C, N),
+    {Acc, C3, N3} = case N of
+                        N1 ->
+                            {[], C, N};
+                        _ ->
+                            C1 = gen_var(N1),
+                            N2 = N1 + 1,
+                            C2 = gen_var(N2),
+                            {[{match,1,
+                               {var,1, C2},
+                               {record,1,
+                                {var,1, C},
+                                      context,
+                                [{record_field,1,{atom,1,s},{var,1,C1}}]}}],
+                             C2, N2}
+                    end,
+    {Clause, Codes2, _} = make_one_clause(Codes1, Acc, C3, N3),
+    [{clause, 0,
+      Arg,
+      [],
+      Clause}|case Codes2 of
+                  [] -> [];
+                  _ -> make_clauses(Codes2, C, N)
+              end].
+
+make_clause_arg([{atom, Line, '(('}|T], C, N) ->
+    {Pattern, T1} = make_clause_arg_pattern(T, {var, Line, gen_var(N+1)}),
+    {[{match, Line,
+      {record, Line, context,
+       [{record_field, Line,
+         {atom, Line, s},
+         Pattern}]},
+      {var, Line, C}}],
+     T1,
+     N + 1};
+make_clause_arg(Codes, C, N) ->
+    {[{var, 0, C}], Codes, N}.
+
+make_clause_arg_pattern([{atom, _, '))'}|T], Acc) ->
+    {Acc, T};
+make_clause_arg_pattern([{_, Line, _}|_]=Codes, Acc) ->
+    {Pattern, Codes1} = make_pattern(Codes),
+    make_clause_arg_pattern(Codes1, {cons, Line, Pattern, Acc}).
+
+
+end_make_one_clause(Codes, [], N) ->
+    {[{var, 0, gen_var(N)}], Codes, N};         % : a ; みたいに本体が空の場合
+end_make_one_clause(Codes, Acc, N) ->
     Clauses = lists:flatten(lists:reverse(Acc)),
     %% :2: Warning: variable '#__C__2__' is unused が出ないように
     %% 最後の match を削除する。
     [{match, _, _, LastClause}|T] = lists:reverse(Clauses),
-    {lists:reverse([LastClause|T]), N-1};
-make_clauses([{atom, _, '='}|T], Acc, C, N) ->
+    {lists:reverse([LastClause|T]), Codes, N-1}.
+
+make_one_clause([], Acc, _, N) ->
+    end_make_one_clause([], Acc, N);
+make_one_clause([{atom, _, '))'}|T], Acc, _, N) ->
+    end_make_one_clause(T, Acc, N);
+make_one_clause([{atom, _, '='}|T], Acc, C, N) ->
     {Pattern, T2} = make_pattern(T),
     SH = gen_var(N+1),
     ST = gen_var(N+2),
     C2 = gen_var(N+3),
-    make_clauses(T2,
+    make_one_clause(T2,
                  [[{match, 1,
                     {cons, 1, {var, 1, SH}, {var, 1, ST}},
                     {record_field, 1, {var, 1, C}, context, {atom, 1, s}}},
@@ -464,7 +516,7 @@ make_clauses([{atom, _, '='}|T], Acc, C, N) ->
                      [{record_field, 3, {atom, 3, s}, {var, 3, ST}}]}}] | Acc],
                  C2,
                  N+3);
-make_clauses([{atom, Line, 'receive'}|T], Acc, C, N) ->
+make_one_clause([{atom, Line, 'receive'}|T], Acc, C, N) ->
     {Receive, T2, N2} =
         case make_receive_clauses(T, C, N, []) of
             {ReceiveClauses, T1, N1} ->
@@ -473,17 +525,17 @@ make_clauses([{atom, Line, 'receive'}|T], Acc, C, N) ->
                 {{'receive', Line, ReceiveClauses, Milliseconds, AfterClauses}, T1, N1}
         end,
     C3 = gen_var(N2 + 1),
-    make_clauses(T2,
+    make_one_clause(T2,
                  [{match, Line, {var, Line, C3}, Receive}|Acc],
                  C3,
                  N2 + 1);
-make_clauses([{atom, Line, 'case'}|T], Acc, C, N) ->
+make_one_clause([{atom, Line, 'case'}|T], Acc, C, N) ->
     SH = gen_var(N+1),
     ST = gen_var(N+2),
     C2 = gen_var(N+3),
     {CaseClauses, T2, N2} = make_case_clauses(T, C2, N+3, []),
     C3 = gen_var(N2 + 1),
-    make_clauses(T2,
+    make_one_clause(T2,
                  [[{match, 1,
                     {cons, 1, {var, 1, SH}, {var, 1, ST}},
                     {record_field, 1, {var, 1, C}, context, {atom, 1, s}}},
@@ -500,10 +552,10 @@ make_clauses([{atom, Line, 'case'}|T], Acc, C, N) ->
                           CaseClauses}}] | Acc],
                  C3,
                  N2+1);
-make_clauses([{atom, Line, Function}|T], Acc, C, N) ->
+make_one_clause([{atom, Line, Function}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
     Module = module_of(Function),
-    make_clauses(T,
+    make_one_clause(T,
                  [{match, Line,
                    {var, Line, C1},
                    {call, Line,
@@ -511,10 +563,10 @@ make_clauses([{atom, Line, Function}|T], Acc, C, N) ->
                     [{var, Line, C}]}} | Acc],
                  C1,
                  N + 1);
-make_clauses([{block, Line, Block}|T], Acc, C, N) ->
+make_one_clause([{block, Line, Block}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
     List = block_to_list(Block, Line),
-    make_clauses(T,
+    make_one_clause(T,
                  [{match, Line,
                    {var, Line, C1},
                    {call, Line,
@@ -523,11 +575,11 @@ make_clauses([{block, Line, Block}|T], Acc, C, N) ->
                      {var, Line, C}]}} | Acc],
                  C1,
                  N + 1);
-make_clauses([{erlang, Line, {Module, Function, Arity}}|T], Acc, C, N) ->
+make_one_clause([{erlang, Line, {Module, Function, Arity}}|T], Acc, C, N) ->
     Args = gen_var(N+1),
     Rest = gen_var(N+2),
     C1 = gen_var(N+3),
-    make_clauses(T,
+    make_one_clause(T,
                  [[{match, Line,
                     {tuple, Line, [{var, Line, Args}, {var, Line, Rest}]},
                     {call, Line,
@@ -552,9 +604,9 @@ make_clauses([{erlang, Line, {Module, Function, Arity}}|T], Acc, C, N) ->
                         {var, Line, Rest}}}]}}] | Acc],
                  C1,
                  N + 3);
-make_clauses([{Type, Line, Value}|T], Acc, C, N) ->
+make_one_clause([{Type, Line, Value}|T], Acc, C, N) ->
     C1 = gen_var(N+1),
-    make_clauses(T,
+    make_one_clause(T,
                  [{match, 0,
                    {var, 0, C1},
                    {call, 0,
@@ -588,8 +640,30 @@ call_block([H|T], C) when is_atom(H) ->
 call_block([H|T], #context{s=S}=C) ->
     call_block(T, C#context{s=[H|S]}).
 
+print_list(List) ->
+    print_list(lists:reverse(List), first).
+print_list([], _) ->
+    ok;
+print_list([X|XS], first) ->
+    io:format("~tp", [X]),
+    print_list(XS, rest);
+print_list([X|XS], _) ->
+    io:format(" ~tp", [X]),
+    print_list(XS, " ").
+
 interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C) ->
-    Debug > 0 andalso io:format("d: s=~w r=~w h=~w, c=~w\n", [S, R, H, Compile]),
+    case Debug > 0 of
+        true ->
+            io:format("s: "),
+            print_list(S),
+            io:format(" r: "),
+            print_list(R),
+            io:format(" h: "),
+            print_list(H),
+            io:format(" c: ~p\n", [Compile]);
+        _ ->
+            ok
+    end,
     case word(C) of
         {{var, _, _}=Var, C2} ->
             case Compile of

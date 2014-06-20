@@ -326,14 +326,19 @@ immed(bar, _) ->
     true.
 bar(_) ->
     {ok}.
-baz(C1) ->
-    C2 = foo:bar(C1),
-    C3 = receive
-        { A } -> foo:bar(A, C2);
-        _ -> bar:bar(C2),
-             bar:bar(C2)
-    end,
-    C4 = foo:bar(C3).
+baz(#context{s=[A,B|T]}=C) ->
+    C0 = C#context{s=T},
+    A,
+    B,
+    C1 = foo:bar(C0);
+baz(#context{s=[[A,B]|_]}=C) ->
+    C1 = foo:bar(A, B, C);
+baz(#context{s=[{A,B}|_]}=C) ->
+    C1 = foo:bar(A, B, C);
+baz(#context{s=[A|_]}=C) ->
+    C1 = foo:bar(A, C);
+baz(C) ->
+    C.
 ",
 compile(S).
 

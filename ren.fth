@@ -1,3 +1,12 @@
+: drop (( _ )) ;
+: dup (( X )) X X ;
+: swap (( X Y )) Y X ;
+: over (( X Y )) X Y X ;
+: rot (( X Y Z )) Y Z X ;
+: -rot (( X Y Z )) Z X Y ;
+: nip (( _ X )) X ;
+: tuck (( X Y )) Y X Y ;
+
 : [] [ ] ;
 
 : 1+
@@ -6,16 +15,6 @@
 
 : 1-
     1 -
-;
-
-: swap
-    = A
-    = B
-    A B
-;
-
-: drop
-    = _
 ;
 
 : if
