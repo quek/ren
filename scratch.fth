@@ -1,10 +1,7 @@
-1 10 .. ( 1+ dup 2 * ) map
-
-
-
 [ 1 2 ] = [ X Y ]
 
 ( X Y + 3 == ) assert
+# call_block を変えないとだめ
 
 
 
