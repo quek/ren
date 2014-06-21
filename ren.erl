@@ -69,6 +69,9 @@ false(#context{s=S}=C) ->
 '-compile'(C) ->
     C#context{compile=false}.
 
+here(#context{s=S, here=H}=C) ->
+    C#context{s=[H|S]}.
+
 '\''(#context{s=S, here=H, compile=Compile}=C) ->
     {{_, Line, Word}=W, C2} = word(C),
     case Compile of
@@ -310,7 +313,14 @@ pop_source(#context{source={In, _, _}, r=[Src|T]}=C) ->
     file:close(In),
     C#context{source=Src, r=T}.
 
-refill(#context{source={In, _, Line}}=C) ->
+refill(#context{s=S, source={In, _, Line}}=C) ->
+    case In of
+        standard_io ->
+            print_list(S),
+            io:nl();
+        _ ->
+            ok
+    end,
     case io:get_line(In, "") of
         eof ->
             pop_source(C);
