@@ -430,6 +430,7 @@ make_case_clauses(Codes, C, N, Acc) ->
     make_case_clauses(Codes2, C, N2,
                       [{clause, 0, [Pattern], [], Body}|Acc]).
 
+
 make_pattern([{atom, Line, '[]'}|T]) ->
     {{nil, Line}, T};
 make_pattern([{atom, _, '['}|T]) ->
@@ -454,6 +455,38 @@ make_tupple_pattern([{atom, _, '}'}|T], Acc) ->
 make_tupple_pattern(Codes, Acc) ->
     {Element, Codes1} = make_pattern(Codes),
     make_tupple_pattern(Codes1, [Element|Acc]).
+
+
+read_pattern({Word, C}) ->
+    case Word of
+        {atom, Line, '[]'} ->
+            {{nil, Line}, C};
+        {atom, _, '['} ->
+            read_cons_pattern(word(C));
+        {atom, Line, '{'} ->
+            read_tupple_pattern(word(C), {nil, Line});
+        X ->
+            {X, C}
+    end.
+
+read_cons_pattern({{atom, Line, ']'}, C}) ->
+    {{nil, Line}, C};
+read_cons_pattern({{atom, _, '.]'}, C}) ->
+    {C};
+read_cons_pattern({{_, Line, _}=Word, C}) ->
+    {Car, C1} = read_pattern({Word, C}),
+    case read_cons_pattern(word(C1)) of
+        {Cdr, C2} ->
+            {{cons, Line, Car, Cdr}, C2};
+        {C2} ->
+            {Car, C2}
+    end.
+
+read_tupple_pattern({{atom, Line, '}'}, C}, Elements) ->
+    {{tuple, Line, Elements}, C};
+read_tupple_pattern({Word, C}, Elements) ->
+    {Pattern, C1} = read_pattern({Word, C}),
+    read_tupple_pattern(word(C1), [Pattern|Elements]).
 
 
 make_clauses(Codes, C, N) ->
@@ -668,7 +701,37 @@ print_list([X|XS], _) ->
     io:format(" ~tp", [X]),
     print_list(XS, " ").
 
-interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C) ->
+
+eval({var, _, _}=Expr, #context{s=S}=C, B) ->
+    {value, Value, B1} = erl_eval:expr(Expr, B),
+    {C#context{s=[Value|S]}, B1};
+eval({atom, Line, '='}, #context{s=[Value|S]}=C, B) ->
+    {Pattern, C1} = read_pattern(word(C#context{s=S})),
+    B1 = erl_eval:add_binding('# Value', Value, B),
+    Expr = {match, Line, Pattern, {var,  Line, '# Value'}},
+    {value, _, B2} = erl_eval:expr(Expr, B1),
+    {C1, B2};
+eval({atom, Line, Atom}=Function, C, B) ->
+    B1 = erl_eval:add_binding('# C', C, B),
+    Module = module_of(Atom),
+    Expr = {call, Line,
+            {remote, Line, {atom, Line, Module}, Function},
+            [{var, Line, '# C'}]},
+    {value, C2, B2} = erl_eval:expr(Expr, B1),
+    {C2, B2};
+eval({erlang, Line, {Module, Function, Arity}}, #context{s=S}=C, B) ->
+    {Args, Rest} = lists:split(Arity, S),
+    C1 = C#context{s=Rest},
+    B1 = erl_eval:add_binding('# C', C1, B),
+    B2 = erl_eval:add_binding('# Args', lists:reverse(Args), B1),
+    Expr = {call, Line,
+            {remote, Line, {atom, Line, erlang}, {atom, Line, apply}},
+            [{atom, Line, Module}, {atom, Line, Function}, {var, Line, '# Args'}]},
+    {value, Value, B3} = erl_eval:expr(Expr, B2),
+    {C1#context{s=[Value|Rest]}, B3}.
+
+
+interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C, B) ->
     case Debug > 0 of
         true ->
             io:format("s: "),
@@ -685,41 +748,44 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C) ->
         {{var, _, _}=Var, C2} ->
             case Compile of
                 false ->
-                    io:format("var ~s is invalide when an execute state.\n", [Var]),
-                    interpret(C2);
+                    {C3, B3} = eval(Var, C2, B),
+                    interpret(C3, B3);
                 true ->
-                    interpret(comma(Var, C2))
+                    interpret(comma(Var, C2), B)
             end;
         {{Type, _, N}=Number, C2} when Type == integer; Type == float ->
             case Compile of
                 false ->
-                    interpret(C2#context{s=[N|S]});
+                    interpret(C2#context{s=[N|S]}, B);
                 true ->
-                    interpret(comma(Number, C2))
+                    interpret(comma(Number, C2), B)
             end;
-        {{erlang, _, {_Module, _Function, _Arity}=F}=ErlangFunction, #context{s=S}=C2} ->
+        {{erlang, _, {_Module, _Function, _Arity}}=ErlangFunction, #context{s=S}=C2} ->
             case Compile of
                 true ->
-                    interpret(comma(ErlangFunction, C2));
+                    interpret(comma(ErlangFunction, C2), B);
                 _ ->
-                    interpret(call(C2#context{s=[F|S]}))
+                    {C3, B3} = eval(ErlangFunction, C2, B),
+                    interpret(C3, B3)
             end;
         {{atom, _, A}=Atom, #context{s=S}=C2} ->
             case {immed(A), Compile} of
                 {false, true} ->
-                    interpret(comma(Atom, C2));
+                    interpret(comma(Atom, C2), B);
                 _ ->
-                    interpret(call(C2#context{s=[A|S]}))
+                    {C3, B3} = eval(Atom, C2, B),
+                    interpret(C3, B3)
             end
     end.
 
+
 i() ->
-    interpret(load(#context{s=["ren.fth"]})).
+    interpret(load(#context{s=["ren.fth"]}), erl_eval:new_bindings()).
 
 d() ->
-    interpret(load(#context{s=["ren.fth"], debug=1})).
+    interpret(load(#context{s=["ren.fth"], debug=1}), erl_eval:new_bindings()).
 
 test() ->
     C1 = load(#context{s=["test.fth"]}),
     C2 = load(C1#context{s=["ren.fth"]}),
-    interpret(C2).
+    interpret(C2, erl_eval:new_bindings()).

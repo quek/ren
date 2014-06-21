@@ -18,6 +18,9 @@
 
 ( ( + ) >fun/2 0 [ 1 2 3 ] lists:foldl/3 6 == ) assert
 
+( math:pi/0 3.141592653589793 == ) assert
+
+
 : test-receive
     receive
         { a X Pid } ( Pid X send test-receive )

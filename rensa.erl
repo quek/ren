@@ -324,8 +324,9 @@ t1() ->
          }).
 immed(bar, _) ->
     true.
-bar(_) ->
-    {ok}.
+bar(X) ->
+    [A, B] = X,
+    A + B.
 baz(#context{s=[A,B|T]}=C) ->
     C0 = C#context{s=T},
     A,
@@ -344,3 +345,14 @@ t2() ->
     {ok, Module, Bin} = compile:forms(Xs),
     io:format("~p ~p\n", [Module, Bin]),
     code:load_binary(Module, atom_to_list(Module), Bin).
+
+
+eval() ->
+    C = #context{s=[1, 2]},
+    B = erl_eval:new_bindings(),
+    B1 = erl_eval:add_binding('# C', C, B),
+    Res = erl_eval:expr({match, 1,
+                         {var, 1, '# C_new'},
+                         {var, 1, '# C'}},
+                        B1),
+    Res.
