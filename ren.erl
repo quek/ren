@@ -37,7 +37,11 @@ false(#context{s=S}=C) ->
     C2 = header(C1#context{s=[Word|S]}),
     C2#context{compile=true}.
 
-';'(#context{here=H, latest={atom, Line, Word}, debug=Debug}=C) ->
+';'(C) ->
+    ';'(C, false).
+immediate(C) ->
+    ';'(C, true).
+';'(#context{here=H, latest={atom, Line, Word}, debug=Debug}=C, Immed) ->
     C0 = gen_var(0),
     Clauses = make_clauses(lists:reverse(H), C0, 0),
     M = module_of(Word),
@@ -56,7 +60,7 @@ false(#context{s=S}=C) ->
                  {tuple,7,[{atom,7,standard_io},{nil,7},{integer,7,0}]}},
                 {record_field,8,{atom,8,debug},{integer,8,0}}]}},
              {function, Line, immed, 2,
-              [{clause, Line, [{atom, Line, Word}, {var, Line, '_'}], [], [{atom, Line, false}]}]},
+              [{clause, Line, [{atom, Line, Word}, {var, Line, '_'}], [], [{atom, Line, Immed}]}]},
              {function, Line, Word, 1, Clauses}],
     Debug > 0 andalso io:format("~p\n", [Codes]),
     {ok, CModule, CBin} = compile:forms(Codes),
