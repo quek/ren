@@ -178,8 +178,8 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
     '}'(D, [A|List]).
 
 '"'(C) ->
-    {X, C2} = key(C),
-    '"'(C2, X, []).
+    #context{s=[X|S]}=C2 = key(C),
+    '"'(C2#context{s=S}, X, []).
 '"'(#context{s=S, compile=Compile}=C, $", Acc) ->                %" %
     Str = lists:reverse(Acc),
     case Compile of
@@ -189,12 +189,12 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
             C#context{s=[Str|S]}
     end;
 '"'(C, $\\, Acc) ->
-    {X2,  C2} = key(C),
-    {X3,  C3} = key(C2),
-    '"'(C3, X3, [backslash_char(X2)|Acc]);
+    #context{s=[X2|S2]}=C2 = key(C),
+    #context{s=[X3|S3]}=C3 = key(C2#context{s=S2}),
+    '"'(C3#context{s=S3}, X3, [backslash_char(X2)|Acc]);
 '"'(C, X, Acc) ->
-    {X2,  C2} = key(C),
-    '"'(C2, X2, [X|Acc]).
+    #context{s=[X2|S2]}=C2 = key(C),
+    '"'(C2#context{s=S2}, X2, [X|Acc]).
 
 load(C) ->
     push_source(C).
@@ -276,6 +276,10 @@ send(#context{s=[Msg,Dest|T]}=C) ->
 'after'(C) -> C.                                %dummy definition
 ';receive'(C) -> C.                             %dummy definition
 
+key(#context{s=S, source={In, [X|XS], Line}}=C) ->
+    C#context{s=[X|S], source={In, XS, Line}};
+key(C) ->
+    key(refill(C)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -314,26 +318,25 @@ refill(#context{source={In, _, Line}}=C) ->
             C#context{source={In, Buffer, Line + 1}}
     end.
 
-key(#context{source={In, [X|XS], Line}}=C) ->
-    {X, C#context{source={In, XS, Line}}};
-key(C) ->
-    key(refill(C)).
-
 
 word(C) ->
-    case key(C) of
-        {X, C2} when X < 33 ->
-            word(C2);
-        {X, C2} ->
-            word([X], C2)
+    #context{s=[X|S]}=C2 = key(C),
+    C3 = C2#context{s=S},
+    if
+        X < 33 ->
+            word(C3);
+        true ->
+            word([X], C3)
     end.
 
 word(Word, C) ->
-    case key(C) of
-        {X, C2} when X < 33 ->
-            {parse_word(lists:reverse(Word), C2), C2};
-        {X, C2} ->
-            word([X|Word], C2)
+    #context{s=[X|S]}=C2 = key(C),
+    C3 = C2#context{s=S},
+    if
+        X < 33 ->
+            {parse_word(lists:reverse(Word), C3), C3};
+        true ->
+            word([X|Word], C3)
     end.
 
 parse_word([H|_]=Word, #context{source={_, _, Line}}) when H == $_ ; H > $A - 1, H < $Z + 1 ->
@@ -413,8 +416,6 @@ make_case_clauses(Codes, C, N, Acc) ->
     make_case_clauses(Codes2, C, N2,
                       [{clause, 0, [Pattern], [], Body}|Acc]).
 
-make_pattern([{var, Line, Var}|T]) ->
-    {{var, Line, Var}, T};
 make_pattern([{atom, Line, '[]'}|T]) ->
     {{nil, Line}, T};
 make_pattern([{atom, _, '['}|T]) ->
@@ -422,8 +423,8 @@ make_pattern([{atom, _, '['}|T]) ->
 make_pattern([{atom, Line, '{'}|T]) ->
     {Elements, T1} = make_tupple_pattern(T, []),
     {{tuple, Line, Elements}, T1};
-make_pattern([{atom, Line, Atom}|T]) ->
-    {{atom, Line, Atom}, T}.
+make_pattern([{_, _, _}=X|T]) ->
+    {X, T}.
 
 make_cons_pattern([{atom, Line, ']'}|T]) ->
     {{nil, Line}, T};
@@ -487,19 +488,19 @@ make_clause_arg_pattern([{_, Line, _}|_]=Codes, Acc) ->
     make_clause_arg_pattern(Codes1, {cons, Line, Pattern, Acc}).
 
 
-end_make_one_clause(Codes, [], N) ->
-    {[{var, 0, gen_var(N)}], Codes, N};         % : a ; みたいに本体が空の場合
-end_make_one_clause(Codes, Acc, N) ->
+end_make_one_clause(Codes, [], C, N) ->
+    {[{var, 0, C}], Codes, N};         % : a ; みたいに本体が空の場合
+end_make_one_clause(Codes, Acc, _, N) ->
     Clauses = lists:flatten(lists:reverse(Acc)),
     %% :2: Warning: variable '#__C__2__' is unused が出ないように
     %% 最後の match を削除する。
     [{match, _, _, LastClause}|T] = lists:reverse(Clauses),
     {lists:reverse([LastClause|T]), Codes, N-1}.
 
-make_one_clause([], Acc, _, N) ->
-    end_make_one_clause([], Acc, N);
-make_one_clause([{atom, _, '(('}|_]=T, Acc, _, N) ->
-    end_make_one_clause(T, Acc, N);
+make_one_clause([], Acc, C, N) ->
+    end_make_one_clause([], Acc, C, N);
+make_one_clause([{atom, _, '(('}|_]=T, Acc, C, N) ->
+    end_make_one_clause(T, Acc, C, N);
 make_one_clause([{atom, _, '='}|T], Acc, C, N) ->
     {Pattern, T2} = make_pattern(T),
     SH = gen_var(N+1),

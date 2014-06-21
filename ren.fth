@@ -1,3 +1,11 @@
+: # key #' ;
+: #'
+    (( 10 ))
+    (( _ ))
+    key #'
+;
+
+# Shuffle words
 : drop (( _ )) ;
 : dup (( X )) X X ;
 : swap (( X Y )) Y X ;
@@ -35,7 +43,7 @@
         false
         ( " failed: ~p\n" [ Form ] format )
         _
-        ( nop )
+        ( )
     ;case
 ;
 
