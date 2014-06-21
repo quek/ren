@@ -47,18 +47,17 @@
     ;case
 ;
 
-: reverse [] reverse' ;
+: reverse [] swap reverse' ;
 : reverse'
-    (( [] Acc )) Acc
-    (( [ H T .] Acc )) T [ H Acc .] reverse'
+    (( [] ))
+    (( Acc [ H T .] )) [ H Acc .] T reverse'
 ;
 
-: map [] map' ;
+: map [ -rot map' ; # list function -- [ list function
 : map'
-    (( [] _ Acc ))
-    Acc reverse
-    (( [ H T .] F Acc ))
-    T F [ H F call Acc .] map'
+    (( [] _  )) ]
+    (( [ H T .] F ))
+    H F call T F map'
 ;
 
 
