@@ -1,5 +1,8 @@
 ( 10 fib 55 == ) assert
 
+( 0 0? ) assert
+( 1 0? ! ) assert
+
 : test-=[A,B]
     = [ A B ]
     A B +

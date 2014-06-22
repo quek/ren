@@ -20,14 +20,6 @@
 
 : cons (( X Y )) [ X Y .] ;
 
-: .. [ -rot ..' ;
-: ..'
-    (( X X ))
-    X ]
-    (( X Y ))
-    X X 1+ Y ..'
-;
-
 
 : 1+
     1 +
@@ -36,6 +28,10 @@
 : 1-
     1 -
 ;
+
+: 0? (( 0 )) true (( _ )) false ;
+
+: ! (( false )) true (( _ )) false ;
 
 : if (( Then Else ))
     case
@@ -56,6 +52,7 @@
     ;case
 ;
 
+
 : reverse [] swap reverse' ;
 : reverse'
     (( [] ))
@@ -67,6 +64,14 @@
     (( [] _  )) ]
     (( [ H T .] F ))
     H F call T F map'
+;
+
+: .. [ -rot ..' ;
+: ..'
+    (( X X ))
+    X ]
+    (( X Y ))
+    X X 1+ Y ..'
 ;
 
 
