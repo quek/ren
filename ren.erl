@@ -2,20 +2,15 @@
 -compile(export_all).
 -include("ren.hrl").
 
-immed(';', _) ->
-    true;
-immed('[\']', _) ->
-    true;
-immed('\'', _) ->
-    true;
-immed(postpone, _) ->
-    true;
-immed('"', _) ->                                %"
-    true;
-immed('(', _) ->
-    true;
-immed(')', _) ->
-    true;
+immed(';', _)           -> true;
+immed('[\']', _)        -> true;
+immed('\'', _)          -> true;
+immed(postpone, _)      -> true;
+immed('"', _)           -> true;
+immed('(', _)           -> true;
+immed(')', _)           -> true;
+immed('[[', _)          -> true;
+immed(']]', _)          -> true;
 immed(_, _) ->
     false.
 
@@ -84,7 +79,13 @@ here(#context{s=S, here=H}=C) ->
     C#context{s=[H|S]}.
 
 ','(#context{s=[Word|S], here=H}=C) ->
-    C#context{s=S, here=[{atom, 0, Word}|H]}.
+    Type = if
+               is_atom(Word) -> atom;
+               is_integer(Word) -> integer;
+               is_float(Word) -> float;
+               true -> string
+           end,
+    C#context{s=S, here=[{Type, 0, Word}|H]}.
 
 '[\']'(#context{here=H}=C) ->
     {{_, Line, _}=Word, C1} = word(C),
