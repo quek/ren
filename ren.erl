@@ -4,7 +4,11 @@
 
 immed(';', _) ->
     true;
+immed('[\']', _) ->
+    true;
 immed('\'', _) ->
+    true;
+immed(postpone, _) ->
     true;
 immed('"', _) ->                                %"
     true;
@@ -73,17 +77,31 @@ immediate(C) ->
 '-compile'(C) ->
     C#context{compile=false}.
 
+'compile?'(#context{s=S, compile=Compile}=C) ->
+    C#context{s=[Compile|S]}.
+
 here(#context{s=S, here=H}=C) ->
     C#context{s=[H|S]}.
+
+','(#context{s=[Word|S], here=H}=C) ->
+    C#context{s=S, here=[{atom, 0, Word}|H]}.
+
+'[\']'(#context{here=H}=C) ->
+    {{_, Line, _}=Word, C1} = word(C),
+    C1#context{here=[Word, {atom, Line, lit}, {atom, Line, lit}|H]}.
 
 '\''(#context{s=S, here=H, compile=Compile}=C) ->
     {{_, Line, Word}=W, C2} = word(C),
     case Compile of
         true ->
-            C2#context{here=[{atom, Line, car}, {block, Line, [W]}|H]};
+            C2#context{here=[W, {atom, Line, lit}|H]};
         false ->
             C2#context{s=[Word|S]}
     end.
+
+postpone(C) ->
+    {Word, C1} = word(C),
+    comma(Word, C1).
 
 call(#context{s=[{Module, Function, Arity}|S]}=C) ->
     {Args, Rest} = lists:split(Arity, S),
@@ -230,6 +248,8 @@ right_paren_collect([]) ->
     [];
 right_paren_collect([{block, _, Block}|T]) ->
     [right_paren_collect(Block)|right_paren_collect(T)];
+right_paren_collect([{atom, _, lit}, {_, _, Value}|T]) ->
+    [Value|right_paren_collect(T)];
 right_paren_collect([{_, _, Value}|T]) ->
     [Value|right_paren_collect(T)].
 
@@ -546,6 +566,17 @@ end_make_one_clause(Codes, Acc, _, N) ->
 
 make_one_clause([], Acc, C, N) ->
     end_make_one_clause([], Acc, C, N);
+make_one_clause([{atom, Line, lit}, Literal|T], Acc, C, N) ->
+    C1 = gen_var(N+1),
+    make_one_clause(T,
+                    [{match, Line,
+                      {var, Line, C1},
+                      {call, Line,
+                       {remote, Line, {atom, Line, ren}, {atom, Line, lit}},
+                       [Literal,
+                        {var, Line, C}]}} | Acc],
+                    C1,
+                    N + 1);
 make_one_clause([{atom, _, '(('}|_]=T, Acc, C, N) ->
     end_make_one_clause(T, Acc, C, N);
 make_one_clause([{atom, _, '='}|T], Acc, C, N) ->
@@ -670,6 +701,8 @@ block_to_list([], Line) ->
     {nil, Line};
 block_to_list([{block, Line2, Block}|T], Line) ->
     {cons, Line, block_to_list(Block, Line2), block_to_list(T, Line)};
+block_to_list([{atom, _, lit},Literal|T], Line) ->
+    {cons, Line, Literal, block_to_list(T, Line)};
 block_to_list([H|T], Line) ->
     {cons, Line, H, block_to_list(T, Line)}.
 
@@ -680,6 +713,8 @@ header(#context{s=[Word|S]}=C) ->
 
 call_block([], C) ->
     C;
+call_block([lit, Literal|T], #context{s=S}=C) ->
+    call_block(T, C#context{s=[Literal|S]});
 call_block([{Module, Function, Arity}|T], #context{s=S}=C) ->
     {Args, Rest} = lists:split(Arity, S),
     Ret = apply(Module, Function, lists:reverse(Args)),

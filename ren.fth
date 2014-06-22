@@ -37,9 +37,7 @@
     1 -
 ;
 
-: if
-    = Else
-    = Then
+: if (( Then Else ))
     case
         false
         ( Else call )
@@ -48,8 +46,7 @@
     ;case
 ;
 
-: assert
-    = Form
+: assert (( Form ))
     Form call
     case
         false
@@ -73,6 +70,17 @@
 ;
 
 
+: ."
+    compile?
+    ( postpone " ['] . , )
+    ( ' " . )
+    if
+; immediate
+
+
+
+# #############################################################################
+# おもちゃ
 : fib
     = N
     N 2 =<
@@ -85,6 +93,5 @@
 ;
 
 : hello
-    " Hello World!"
-    .
+    ." Hello World!"
 ;

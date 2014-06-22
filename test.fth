@@ -6,6 +6,11 @@
 ;
 ( [ 1 2 ] test-=[A,B] 3 == ) assert
 
+
+( true ( 1 ) ( -1 ) if 1 == ) assert
+( false ( 1 ) ( -1 ) if -1 == ) assert
+
+
 ( [ 1 2 3 ] lists:reverse/1 [ 3 2 1 ] == ) assert
 
 : my-erlang-erverse
@@ -47,5 +52,24 @@
 ( [ 1 2 3 ] reverse [ 3 2 1 ] == ) assert
 
 ( [ 1 2 3 ] ( 2 * ) map [ 2 4 6 ] == ) assert
+
+
+# #############################################################################
+# postpone ['] '
+: "-and-dup
+    compile?
+    ( postpone " ['] dup , )
+    ( ' " dup )
+    if
+; immediate
+
+"-and-dup b"
+( cons [ " b" " b" .] == ) assert
+: tset-"-and-dup
+    "-and-dup a"
+;
+tset-"-and-dup
+( cons [ " a" " a" .] == ) assert
+
 
 " ok" .
