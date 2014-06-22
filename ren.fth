@@ -4,12 +4,13 @@
     , ]]
 ;
 
-: # key #' ;
+: # key #' ; immediate
 : #'
     (( [[ lf , ]] ))
     (( _ ))
     key #'
 ;
+: #! postpone # ; immediate
 
 # Shuffle words
 : drop (( _ )) ;
