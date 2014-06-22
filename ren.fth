@@ -66,6 +66,12 @@
     H F call T F map'
 ;
 
+: reduce
+    (( [] Acc _ )) Acc
+    (( [ H T .] Acc F ))
+    T H Acc F call F reduce
+;
+
 : .. [ -rot ..' ;
 : ..'
     (( X X ))

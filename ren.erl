@@ -71,11 +71,11 @@ immediate(C) ->
     code:load_binary(CModule, atom_to_list(CModule), CBin),
     C#context{compile=false}.
 
-'+compile'(C) ->
-    C#context{compile=true}.
-
-'-compile'(C) ->
+'[['(C) ->
     C#context{compile=false}.
+
+']]'(C) ->
+    C#context{compile=true}.
 
 'compile?'(#context{s=S, compile=Compile}=C) ->
     C#context{s=[Compile|S]}.
@@ -429,7 +429,9 @@ literal_type(X) ->
     end.
 
 gen_var(N) ->
-    list_to_atom("#__C__" ++ integer_to_list(N) ++ "__").
+    gen_var(N, "X").
+gen_var(N, Var) ->
+    list_to_atom("# " ++ Var ++ integer_to_list(N)).
 
 make_receive_clauses([{atom, _, ';receive'}|T], _, N, Acc) ->
     {lists:reverse(Acc), T, N};
