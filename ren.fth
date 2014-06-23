@@ -22,6 +22,8 @@
 : nip (( _ X )) X ;
 : tuck (( X Y )) Y X Y ;
 
+: swapd (( X Y Z )) Y X Z ;
+
 
 : [] [ ] ;
 
@@ -60,24 +62,19 @@
 ;
 
 
-: reverse [] swap reverse' ;
-: reverse'
-    (( [] ))
-    (( Acc [ H T .] )) [ H Acc .] T reverse'
-;
-
-: map [ -rot map' ; # list function -- [ list function
-: map'
-    (( [] _  )) ]
+: each
+    (( [] _ ))
     (( [ H T .] F ))
-    H F call T F map'
+    H F call T F each
 ;
 
-: reduce
-    (( [] Acc _ )) Acc
-    (( [ H T .] Acc F ))
-    T H Acc F call F reduce
-;
+: reverse [] swap ( swap cons ) each ;
+
+: map [ -rot each ] ;
+
+: reduce swapd each ;
+
+
 
 : .. [ -rot ..' ;
 : ..'
