@@ -85,8 +85,41 @@
     ;case
 ;
 
+: when ( ) if ;
+
 : and (( false _ )) false (( _ false )) false (( _ _ )) true ;
 : or (( false false )) false (( _ _ )) true ;
+
+
+: " [ key "' ; immediate
+: "'
+    (( [[ key " , ]] ))
+    ] compile? ( , ) when
+    (( [[ key \ , ]] ))
+    key backslash-char "'
+    (( ))
+    key "'
+;
+: backslash-char
+    (( [[ key a , ]] ))  # bell
+    7
+    (( [[ key b , ]] ))  # backspace
+    8
+    (( [[ key t , ]] ))  # horizontal tab
+    9
+    (( [[ key n , ]] ))  # new line
+    10
+    (( [[ key v , ]] ))  # vertical tab
+    11
+    (( [[ key f , ]] ))  # form feed
+    12
+    (( [[ key r , ]] ))  # carriage ret
+    13
+    (( [[ key \ , ]] ))  # back slash
+    [[ key \ , ]]
+    (( ))
+;
+
 
 : assert (( Form ))
     Form call

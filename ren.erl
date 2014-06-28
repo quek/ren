@@ -184,25 +184,6 @@ cdr(#context{s=[[_|XS]|T]}=C) ->
     C#context{s=[XS|T]}.
 
 
-'"'(C) ->
-    #context{s=[X|S]}=C2 = key(C),
-    '"'(C2#context{s=S}, X, []).
-'"'(#context{s=S, compile=Compile}=C, $", Acc) ->                %" %
-    Str = lists:reverse(Acc),
-    case Compile of
-        true ->
-            comma({string, 0, Str}, C);
-        false ->
-            C#context{s=[Str|S]}
-    end;
-'"'(C, $\\, Acc) ->
-    #context{s=[X2|S2]}=C2 = key(C),
-    #context{s=[X3|S3]}=C3 = key(C2#context{s=S2}),
-    '"'(C3#context{s=S3}, X3, [backslash_char(X2)|Acc]);
-'"'(C, X, Acc) ->
-    #context{s=[X2|S2]}=C2 = key(C),
-    '"'(C2#context{s=S2}, X2, [X|Acc]).
-
 load(C) ->
     push_source(C).
 
@@ -295,17 +276,6 @@ key(C) ->
     C#context{s=[]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-backslash_char($n) ->
-    $\n;
-backslash_char($r) ->
-    $\r;
-backslash_char($t) ->
-    $\t;
-backslash_char($v) ->
-    $\v;
-backslash_char(X) ->
-    X.
 
 module_of(Atom) ->
     case erlang:function_exported(ren, Atom, 1) of
