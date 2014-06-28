@@ -10,7 +10,21 @@
     (( _ ))
     key #'
 ;
+# これはコメント
+
+: postpone
+    ' ,
+    ; immediate
 : #! postpone # ; immediate
+#! これもコメント
+
+: [']
+    'lit , 'lit , ' ,
+; immediate
+
+
+
+
 
 # Shuffle words
 : drop (( _ )) ;
@@ -29,14 +43,38 @@
 
 : cons (( X Y )) [ X Y .] ;
 
+: >tuple erlang:list_to_tuple/1 ;
+: >map maps:from_list/1 ;
 
-: 1+
-    1 +
+: { '{ ;
+: #{ '#{ ;
+
+: } [] }' ;
+: }'
+    over '{ ==
+    ( nip >tuple )
+    (
+        over '#{ ==
+        ( nip [] >map' )
+        ( cons }' )
+        if
+    )
+    if
+;
+: >map'
+    (( [ K V T .] Acc ))
+    T [ { K V } Acc .] >map'
+    (( [] Acc ))
+    Acc >map
 ;
 
-: 1-
-    1 -
+: at # map key -- value
+    swap maps:get/2
 ;
+
+
+: 1+ 1 + ;
+: 1- 1 - ;
 
 : 0? (( 0 )) true (( _ )) false ;
 
@@ -88,7 +126,7 @@
 : ."
     compile?
     ( postpone " ['] . , )
-    ( ' " . )
+    ( '" . )
     if
 ; immediate
 

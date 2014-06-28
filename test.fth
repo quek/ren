@@ -36,10 +36,10 @@
     ;receive
 ;
 : test-send
-    ' test-receive spawn
+    'test-receive spawn
     dup
-    { ' a 3 self } send
-    { ' b 3 self } send
+    { 'a 3 self } send
+    { 'b 3 self } send
     {
         receive
           X ( X )
@@ -64,7 +64,7 @@
 : "-and-dup
     compile?
     ( postpone " ['] dup , )
-    ( ' " dup )
+    ( '" dup )
     if
 ; immediate
 

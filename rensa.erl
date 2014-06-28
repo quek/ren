@@ -324,9 +324,10 @@ t1() ->
          }).
 immed(bar, _) ->
     true.
-bar(X) ->
-    [A, B] = X,
-    A + B.
+bar(#{ 1 := B } = X) ->
+    X#{c := 333},
+    X#{d => 777},
+    1 + B.
 baz(#context{s=[A,B|T]}=C) ->
     C0 = C#context{s=T},
     A,

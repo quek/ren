@@ -3,9 +3,6 @@
 -include("ren.hrl").
 
 immed(';', _)           -> true;
-immed('[\']', _)        -> true;
-immed('\'', _)          -> true;
-immed(postpone, _)      -> true;
 immed('"', _)           -> true;
 immed('(', _)           -> true;
 immed(')', _)           -> true;
@@ -87,22 +84,9 @@ here(#context{s=S, here=H}=C) ->
            end,
     C#context{s=S, here=[{Type, 0, Word}|H]}.
 
-'[\']'(#context{here=H}=C) ->
-    {{_, Line, _}=Word, C1} = word(C),
-    C1#context{here=[Word, {atom, Line, lit}, {atom, Line, lit}|H]}.
-
-'\''(#context{s=S, here=H, compile=Compile}=C) ->
-    {{_, Line, Word}=W, C2} = word(C),
-    case Compile of
-        true ->
-            C2#context{here=[W, {atom, Line, lit}|H]};
-        false ->
-            C2#context{s=[Word|S]}
-    end.
-
-postpone(C) ->
-    {Word, C1} = word(C),
-    comma(Word, C1).
+'\''(#context{s=S}=C) ->
+    {{_, _, Word}, C2} = word(C),
+    C2#context{s=[Word|S]}.
 
 call(#context{s=[{Module, Function, Arity}|S]}=C) ->
     {Args, Rest} = lists:split(Arity, S),
@@ -193,15 +177,6 @@ cdr(#context{s=[[]|T]}=C) ->
 cdr(#context{s=[[_|XS]|T]}=C) ->
     C#context{s=[XS|T]}.
 
-'{'(#context{s=S}=C) ->
-    C#context{s=['{'|S]}.
-
-'}'(#context{s=S}=C) ->
-    C#context{s='}'(S, [])}.
-'}'(['{'|T], List) ->
-    [list_to_tuple(List)|T];
-'}'([A|D], List) ->
-    '}'(D, [A|List]).
 
 '"'(C) ->
     #context{s=[X|S]}=C2 = key(C),
@@ -249,8 +224,8 @@ right_paren_collect([]) ->
     [];
 right_paren_collect([{block, _, Block}|T]) ->
     [right_paren_collect(Block)|right_paren_collect(T)];
-right_paren_collect([{atom, _, lit}, {_, _, Value}|T]) ->
-    [Value|right_paren_collect(T)];
+%right_paren_collect([{atom, _, lit}, {_, _, Value}|T]) ->
+%    [Value|right_paren_collect(T)];
 right_paren_collect([{_, _, Value}|T]) ->
     [Value|right_paren_collect(T)].
 
@@ -374,6 +349,8 @@ word(Word, C) ->
             word([X|Word], C3)
     end.
 
+parse_word([$',X|XS], #context{source={_, _, Line}}) ->
+    {quote, Line, list_to_atom([X|XS])};
 parse_word([H|_]=Word, #context{source={_, _, Line}}) when H == $_ ; H > $A - 1, H < $Z + 1 ->
     {var, Line, list_to_atom(Word)};
 parse_word(Word, #context{source={_, _, Line}}) ->
@@ -813,6 +790,13 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug}=C, B) ->
                 _ ->
                     {C3, B3} = eval(Atom, C2, B),
                     interpret(C3, B3)
+            end;
+        {{quote, Line, Atom}, #context{s=S}=C2} ->
+            case Compile of
+                false ->
+                    interpret(C2#context{s=[Atom|S]}, B);
+                _ ->
+                    interpret(comma({atom, Line, Atom}, comma({atom, Line, lit}, C2)), B)
             end
     end.
 
