@@ -96,11 +96,11 @@
     (( [[ key " , ]] ))
     ] compile? ( , ) when
     (( [[ key \ , ]] ))
-    key backslash-char "'
+    key backslash-char-code "'
     (( ))
     key "'
 ;
-: backslash-char
+: backslash-char-code
     (( [[ key a , ]] ))  # bell
     7
     (( [[ key b , ]] ))  # backspace
