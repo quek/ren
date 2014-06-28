@@ -3,7 +3,6 @@
 -include("ren.hrl").
 
 immed(';', _)           -> true;
-immed('"', _)           -> true;
 immed('(', _)           -> true;
 immed(')', _)           -> true;
 immed('[[', _)          -> true;
