@@ -42,6 +42,8 @@
 : [] [ ] ;
 
 : cons (( X Y )) [ X Y .] ;
+: cons$ (( X Y )) [ Y X .] ;
+
 
 : >tuple erlang:list_to_tuple/1 ;
 : >map maps:from_list/1 ;
@@ -55,17 +57,11 @@
     ( nip >tuple )
     (
         over '#{ ==
-        ( nip [] >map' )
+        ( nip 2 ( >tuple ) map-split-at >map )
         ( cons }' )
         if
     )
     if
-;
-: >map'
-    (( [ K V T .] Acc ))
-    T [ { K V } Acc .] >map'
-    (( [] Acc ))
-    Acc >map
 ;
 
 : at # map key -- value
@@ -89,6 +85,9 @@
     ;case
 ;
 
+: and (( false _ )) false (( _ false )) false (( _ _ )) true ;
+: or (( false false )) false (( _ _ )) true ;
+
 : assert (( Form ))
     Form call
     case
@@ -105,13 +104,42 @@
     (( [ H T .] F ))
     H F call T F each
 ;
+: each$
+    (( _ [] ))
+    (( F [ H T .] ))
+    H F call F T each$
+;
 
-: reverse [] swap ( swap cons ) each ;
+: reverse [] swap ( cons$ ) each ;
 
-: map [ -rot each ] ;
+: map (( List F )) [ List F each ] ;
 
 : reduce swapd each ;
 
+: take (( List N )) [ List N take' ;
+: take'
+    (( _ 0 )) ]
+    (( [] _ )) ]
+    (( [ H T .] N ))
+    H T N 1- take'
+;
+
+: split-at (( List N )) [ List N split-at' ;
+: split-at'
+    (( T 0 )) ] T
+    (( [] _ )) ] []
+    (( [ H T .] N ))
+    H T N 1- split-at'
+;
+
+: each-split-at
+    (( _ 0 _ ))
+    (( [] _ _ ))
+    (( List N F ))
+    List N split-at >r F call r> N F each-split-at
+;
+
+: map-split-at (( List N F )) [ List N F each-split-at ] ;
 
 
 : .. [ -rot ..' ;

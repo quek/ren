@@ -37,4 +37,4 @@ xxx.yyy.ff
 
 { 'a 1 'b 2 'c 3 } 'a at
 
-
+[ 'a 1 'b 2 'c 3 ] 2 split_every ( >tuple ) map

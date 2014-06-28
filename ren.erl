@@ -22,6 +22,12 @@ immed(Atom) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nop(C) -> C.
 
+'>r'(#context{s=[H|T], r=R}=C) ->
+    C#context{s=T, r=[H|R]}.
+
+'r>'(#context{s=S, r=[H|T]}=C) ->
+    C#context{s=[H|S], r=T}.
+
 true(#context{s=S}=C) ->
     C#context{s=[true|S]}.
 
@@ -283,6 +289,10 @@ key(#context{s=S, source={In, [X|XS], Line}}=C) ->
     C#context{s=[X|S], source={In, XS, Line}};
 key(C) ->
     key(refill(C)).
+
+
+'clear-stack'(C) ->
+    C#context{s=[]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
