@@ -161,11 +161,13 @@
 
 : cons$ (( X Y )) [ Y X .] ;
 
-: reverse [] swap ( cons$ ) each ;
+: reverse (( List )) [] List ( cons$ ) each ;
 
 : map (( List F )) [ List F each ] ;
 
-: reduce swapd each ;
+: reduce (( List Init F )) Init List F each ;
+
+: length 0 ( drop 1+ ) reduce ;
 
 : take (( List N )) [ List N take' ;
 : take'
