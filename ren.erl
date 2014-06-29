@@ -19,13 +19,17 @@ immed(Atom) ->
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-nop(C) -> C.
-
 '>r'(#context{s=[H|T], r=R}=C) ->
     C#context{s=T, r=[H|R]}.
 
 'r>'(#context{s=S, r=[H|T]}=C) ->
     C#context{s=[H|S], r=T}.
+
+'[]'(#context{s=S}=C) ->
+    C#context{s=[[]|S]}.
+
+cons(#context{s=[Y,X|T]}=C) ->
+    C#context{s=[[X|Y]|T]}.
 
 true(#context{s=S}=C) ->
     C#context{s=[true|S]}.
@@ -158,29 +162,6 @@ call(#context{s=[Block|S]}=C) ->
 format(#context{s=[Args,Format|T]}=C) ->
     io:format(Format, Args),
     C#context{s=T}.
-
-'['(#context{s=S}=C) ->
-    C#context{s=['['|S]}.
-
-']'(#context{s=S}=C) ->
-    C#context{s=']'(S, [])}.
-']'(['['|T], List) ->
-    [List|T];
-']'([H|T], List) ->
-    ']'(T, [H|List]).
-
-'.]'(#context{s=[H|T]}=C) ->
-    C#context{s=']'(T, H)}.
-
-car(#context{s=[[]|T]}=C)->
-    C#context{s=[[]|T]};
-car(#context{s=[[X|_]|T]}=C) ->
-    C#context{s=[X|T]}.
-
-cdr(#context{s=[[]|T]}=C) ->
-    C#context{s=[[]|T]};
-cdr(#context{s=[[_|XS]|T]}=C) ->
-    C#context{s=[XS|T]}.
 
 
 load(C) ->

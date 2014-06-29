@@ -23,9 +23,7 @@
 ; immediate
 
 
-
-
-
+# #############################################################################
 # Shuffle words
 : drop (( _ )) ;
 : dup (( X )) X X ;
@@ -39,10 +37,40 @@
 : swapd (( X Y Z )) Y X Z ;
 
 
-: [] [ ] ;
+# #############################################################################
+# if, etc
+: if (( Then Else ))
+    case
+        false
+        ( Else call )
+        _
+        ( Then call )
+    ;case
+;
 
-: cons (( X Y )) [ X Y .] ;
-: cons$ (( X Y )) [ Y X .] ;
+: when ( ) if ;
+
+: and (( false _ )) false (( _ false )) false (( _ _ )) true ;
+: or (( false false )) false (( _ _ )) true ;
+
+
+# #############################################################################
+# List
+: [ '[ ;
+
+: ] [] ]' ;
+
+: ]'
+    over '[ ==
+    ( nip )
+    ( cons ]' )
+    if
+;
+
+: .] ]' ;
+
+: car (( [] )) [] (( [ X _ .] )) X ;
+: cdr (( [] )) [] (( [ _ X .] )) X ;
 
 
 : >tuple erlang:list_to_tuple/1 ;
@@ -76,19 +104,6 @@
 
 : ! (( false )) true (( _ )) false ;
 
-: if (( Then Else ))
-    case
-        false
-        ( Else call )
-        _
-        ( Then call )
-    ;case
-;
-
-: when ( ) if ;
-
-: and (( false _ )) false (( _ false )) false (( _ _ )) true ;
-: or (( false false )) false (( _ _ )) true ;
 
 
 : " [ key "' ; immediate
@@ -142,6 +157,9 @@
     (( F [ H T .] ))
     H F call F T each$
 ;
+
+
+: cons$ (( X Y )) [ Y X .] ;
 
 : reverse [] swap ( cons$ ) each ;
 
