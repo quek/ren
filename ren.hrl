@@ -1,9 +1,9 @@
--record(word, {
-          name,
-          f=nil,
-          code=nil,
-          hidden=false,
-          immed=false
+-record(src, {
+          in=standard_io,
+          buffer=[],
+          line=0,
+          use=[core, biw],
+          module=scratch
          }).
 
 -record(context, {
@@ -13,6 +13,6 @@
           compile=false,
           here=[],
           latest,
-          source={standard_io, [], 0},
+          source=#src{},
           debug=0
          }).

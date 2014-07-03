@@ -1,3 +1,19 @@
+'test module
+
+: foo 1 ;
+
+( foo 1 == ) assert
+
+'test' module
+
+: foo 2 ;
+
+( foo 2 == ) assert
+
+'test module
+
+( foo 1 == ) assert
+
 ( 10 fib 55 == ) assert
 
 ( 0 0? ) assert

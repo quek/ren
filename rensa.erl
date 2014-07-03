@@ -312,22 +312,29 @@ mk_forms(S, Acc) ->
 t1() ->
     S = "-module(foo).
 -export([bar/1, baz/1, immed/2]).
+-ren_code([]).
+-record(src, {
+          in=standard_io,
+          buffer=[],
+          line=0,
+          use=[core],
+          module=core
+         }).
+
 -record(context, {
           s=[],
           r=[],
           cp,
           compile=false,
-          here,
+          here=[],
           latest,
-          source={standard_io, [], 0},
+          source=#src{},
           debug=0
          }).
 immed(bar, _) ->
     true.
-bar(#{ 1 := B } = X) ->
-    X#{c := 333},
-    X#{d => 777},
-    1 + B.
+bar(X) ->
+    baz(X).
 baz(#context{s=[A,B|T]}=C) ->
     C0 = C#context{s=T},
     A,

@@ -1,3 +1,5 @@
+'core module
+
 : lf
     lit [[ key
 
