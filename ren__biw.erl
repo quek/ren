@@ -21,6 +21,7 @@ immed(Current, Use, Word) ->
     immed(real_module(module_of(Word, Current, Use), Word), Word).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% built in word
 module(#context{s=[Module|S], source=Src}=C) ->
     C#context{s=S, source=Src#src{module=Module}}.
 
@@ -39,12 +40,6 @@ module(#context{s=[Module|S], source=Src}=C) ->
 
 cons(#context{s=[Y,X|T]}=C) ->
     C#context{s=[[X|Y]|T]}.
-
-true(#context{s=S}=C) ->
-    C#context{s=[true|S]}.
-
-false(#context{s=S}=C) ->
-    C#context{s=[false|S]}.
 
 ':'(#context{}=C) ->
     {Word, #context{s=S}=C1} = word(C),
