@@ -14,6 +14,7 @@
 ;
 # これはコメント
 
+
 : postpone
     ' ,
     ; immediate
@@ -23,6 +24,14 @@
 : [']
     'lit , 'lit , ' ,
 ; immediate
+
+
+: module: ' module ; immediate                  # module: foo
+: use-module: ' dup use-module-as ; immediate   # use-module: foo
+: use-module-as: ' ' use-module-as ; immediate  # use-module-as: foo f
+
+
+
 
 # #############################################################################
 # Shuffle words
