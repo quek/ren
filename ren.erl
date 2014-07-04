@@ -1,4 +1,4 @@
--module(ren__biw).
+-module(ren).
 -compile(export_all).
 -include("ren.hrl").
 
@@ -285,7 +285,7 @@ module_of(Atom, Current, [{X, _}|XS]) ->
 real_module(Module, Word) ->
     case Module of
         biw ->
-            ren__biw;
+            ren;
         _ ->
             list_to_atom(lists:concat(['ren ', Module, ' ', Word]))
     end.
@@ -587,7 +587,7 @@ make_one_clause([{atom, Line, lit}, Literal|T], Current, Use, Acc, C, N) ->
                     [{match, Line,
                       {var, Line, C1},
                       {call, Line,
-                       {remote, Line, {atom, Line, ren__biw}, {atom, Line, lit}},
+                       {remote, Line, {atom, Line, ren}, {atom, Line, lit}},
                        [Literal,
                         {var, Line, C}]}} | Acc],
                     C1,
@@ -666,7 +666,7 @@ make_one_clause([{block, Line, Block}|T], Current, Use, Acc, C, N) ->
                     [{match, Line,
                       {var, Line, C1},
                       {call, Line,
-                       {remote, Line, {atom, Line, ren__biw}, {atom, Line, lit}},
+                       {remote, Line, {atom, Line, ren}, {atom, Line, lit}},
                        [List,
                         {var, Line, C}]}} | Acc],
                     C1,
@@ -706,7 +706,7 @@ make_one_clause([{Type, Line, Value}|T], Current, Use, Acc, C, N) ->
                     [{match, 0,
                       {var, 0, C1},
                       {call, 0,
-                       {remote, 1, {atom, 1, ren__biw}, {atom, 1, lit}},
+                       {remote, 1, {atom, 1, ren}, {atom, 1, lit}},
                        [{Type, Line, Value},
                         {var, 1, C}]}} | Acc],
                     C1,
