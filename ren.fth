@@ -24,7 +24,6 @@
     'lit , 'lit , ' ,
 ; immediate
 
-
 # #############################################################################
 # Shuffle words
 : drop (( _ )) ;
@@ -35,8 +34,11 @@
 : -rot (( X Y Z )) Z X Y ;
 : nip (( _ X )) X ;
 : tuck (( X Y )) Y X Y ;
-
 : swapd (( X Y Z )) Y X Z ;
+
+
+# #############################################################################
+: use-module dup use-module-as ;
 
 
 # #############################################################################
@@ -146,7 +148,7 @@
     Form call
     case
         false
-        ( " failed: ~p\n" [ Form ] format )
+        ( " failed: ~p\n" [ Form ] format dump-context . )
         _
         ( )
     ;case

@@ -2,7 +2,7 @@
           in=standard_io,
           buffer=[],
           line=0,
-          use=[core, biw],
+          use=[{core, core}, {biw, biw}],
           module=scratch
          }).
 

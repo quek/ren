@@ -2,13 +2,12 @@
 -compile(export_all).
 -include("ren.hrl").
 
-immed(';')           -> true;
-immed('(')           -> true;
-immed(')')           -> true;
-immed('[[')          -> true;
-immed(']]')          -> true;
-immed(_) ->
-    false.
+immed(';')      -> true;
+immed('(')      -> true;
+immed(')')      -> true;
+immed('[[')     -> true;
+immed(']]')     -> true;
+immed(_)        -> false.
 
 immed(Module, Word) ->
     try
@@ -18,16 +17,19 @@ immed(Module, Word) ->
     end.
 
 immed(Current, Use, Word) ->
-    immed(real_module(module_of(Word, Current, Use), Word), Word).
+    {M, W} = module_word(Word, Current, Use),
+    immed(M, W).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % built in word
 module(#context{s=[Module|S], source=Src}=C) ->
-    C#context{s=S, source=Src#src{module=Module}}.
+    C#context{s=S, source=Src#src{module=Module, use=[{core, core}, {biw, biw}]}}.
 
-'use-module'(#context{s=[Module|S], source=#src{use=Use}=Src}=C) ->
-    C#context{s=S, source=Src#src{use=[Module|Use]}}.
+'use-module-as'(#context{s=[As,Module|S], source=#src{use=Use}=Src}=C) ->
+    C#context{s=S, source=Src#src{use=[{Module, As}|Use]}}.
 
+'dump-context'(#context{s=S}=C) ->
+    C#context{s=[C|S]}.
 
 '>r'(#context{s=[H|T], r=R}=C) ->
     C#context{s=T, r=[H|R]}.
@@ -53,10 +55,11 @@ immediate(C) ->
     semicolon(C, true).
 semicolon(#context{here=H, latest={atom, Line, Word}, debug=Debug,
              source=#src{module=Current, use=Use}}=C, Immediate) ->
-    Codes = default_codes(Current, Word, Immediate),
+    {M, W} = module_word(Word, Current, Use),
+    Codes = default_codes(M, Immediate),
     C0 = gen_var(0),
     Clauses = make_clauses(lists:reverse(H), Current, Use, C0, 0),
-    Codes2 = add_function(Codes, Word, Line, Clauses),
+    Codes2 = add_function(Codes, W, Line, Clauses),
     Debug > 0 andalso io:format("~p\n", [Codes2]),
     {ok, CModule, CBin} = compile:forms(Codes2),
     code:load_binary(CModule, atom_to_list(CModule), CBin),
@@ -92,8 +95,8 @@ call(#context{s=[{Module, Function, Arity}|S]}=C) ->
     Ret = apply(Module, Function, lists:reverse(Args)),
     C#context{s=[Ret|Rest]};
 call(#context{s=[Word|S], source=#src{module=Current, use=Use}}=C) when is_atom(Word) ->
-    M = module_of(Word, Current, Use),
-    apply(real_module(M, Word), Word, [C#context{s=S}]);
+    {M, W} = module_word(Word, Current, Use),
+    apply(M, W, [C#context{s=S}]);
 call(#context{s=[Block|S]}=C) ->
     call_block(Block, C#context{s=S}).
 
@@ -187,29 +190,35 @@ right_paren_collect([{_, _, Value}|T]) ->
 
 
 
-'>fun/0'(#context{s=[Block|T]}=C) ->
+'>fun/0'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun() ->
-                         handle_fun_result(call(#context{s=[Block]}))
+                         handle_fun_result(call(#context{s=[Block],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
-'>fun/1'(#context{s=[Block|T]}=C) ->
+'>fun/1'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun(Arg1) ->
-                         handle_fun_result(call(#context{s=[Block, Arg1]}))
+                         handle_fun_result(call(#context{s=[Block, Arg1],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
-'>fun/2'(#context{s=[Block|T]}=C) ->
+'>fun/2'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun(Arg1, Arg2) ->
-                         handle_fun_result(call(#context{s=[Block, Arg2, Arg1]}))
+                         handle_fun_result(call(#context{s=[Block, Arg2, Arg1],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
-'>fun/3'(#context{s=[Block|T]}=C) ->
+'>fun/3'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3) ->
-                         handle_fun_result(call(#context{s=[Block, Arg3, Arg2, Arg1]}))
+                         handle_fun_result(call(#context{s=[Block, Arg3, Arg2, Arg1],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
-'>fun/4'(#context{s=[Block|T]}=C) ->
+'>fun/4'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3, Arg4) ->
-                         handle_fun_result(call(#context{s=[Block, Arg4, Arg3, Arg2, Arg1]}))
+                         handle_fun_result(call(#context{s=[Block, Arg4, Arg3, Arg2, Arg1],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
-'>fun/5'(#context{s=[Block|T]}=C) ->
+'>fun/5'(#context{s=[Block|T], source=#src{module=Current, use=Use}}=C) ->
     C#context{s=[fun(Arg1, Arg2, Arg3, Arg4, Arg5) ->
-                         handle_fun_result(call(#context{s=[Block, Arg5, Arg4, Arg3, Arg2, Arg1]}))
+                         handle_fun_result(call(#context{s=[Block, Arg5, Arg4, Arg3, Arg2, Arg1],
+                                                         source=#src{module=Current, use=Use}}))
                  end | T]}.
 handle_fun_result(#context{s=[]}) ->
     [];
@@ -245,15 +254,43 @@ key(C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+module_word(Word, Module, Use) ->
+    L = atom_to_list(Word),
+    case lists:splitwith(fun(X) -> X =/= $. end, L) of
+        {W, []} ->
+            W2 = list_to_atom(W),
+            M = module_of(W2, Module, Use),
+            {real_module(M, W2), W2};
+        {[], W} ->
+            W2 = list_to_atom(W),
+            M = module_of(W2, Module, Use),
+            {real_module(M, W2), W2};
+        {M, [$.|W]} ->
+            M2 = list_to_atom(M),
+            W2 = list_to_atom(W),
+            {MM, M2} = lists:keyfind(M2, 2, Use),
+            {real_module(MM, W2), W2}
+    end.
+
 module_of(_, Current, []) ->
     Current;
-module_of(Atom, Current, [X|XS]) ->
+module_of(Atom, Current, [{X, _}|XS]) ->
     case erlang:function_exported(real_module(X, Atom), Atom, 1) of
         true ->
             X;
         false ->
             module_of(Atom, Current, XS)
     end.
+
+real_module(Module, Word) ->
+    case Module of
+        biw ->
+            ren__biw;
+        _ ->
+            list_to_atom(lists:concat(['ren ', Module, ' ', Word]))
+    end.
+
+
 
 push_source(#context{s=[File|S], r=R, source=Src}=C) ->
     {ok, In} = file:open(File, read),
@@ -439,18 +476,9 @@ read_tupple_pattern({Word, C}, Elements) ->
     read_tupple_pattern(word(C1), [Pattern|Elements]).
 
 
-real_module(Module, Word) ->
-    case Module of
-        biw ->
-            ren__biw;
-        _ ->
-            list_to_atom(lists:concat(['ren ', Module, ' ', Word]))
-    end.
-
-default_codes(Current, Word, Immediate) ->
-    RealModule = real_module(Current, Word),
+default_codes(Module, Immediate) ->
     Line = 0,
-    [{attribute, Line, module, RealModule},
+    [{attribute, Line, module, Module},
      {attribute, Line, export, [{immed, 1}]},
      {attribute, Line, ren_codes, []},
      {attribute,0,record,
@@ -458,7 +486,7 @@ default_codes(Current, Word, Immediate) ->
        [{record_field,1,{atom,1,in},{atom,1,standard_io}},
         {record_field,2,{atom,2,buffer},{nil,2}},
         {record_field,3,{atom,3,line},{integer,3,0}},
-        {record_field,4,{atom,4,use},{cons,4,{atom,4,core},{cons,4,{atom,4,biw},{nil,4}}}},
+        {record_field,4,{atom,4,use},{cons,4,{tuple,4,[{atom,4,biw},{atom,4,biw}]},{nil,4}}},
         {record_field,5,{atom,5,module},{atom,5,scratch}}]}},
      {attribute,Line,record,
       {context,
@@ -622,12 +650,12 @@ make_one_clause([{atom, Line, 'case'}|T], Current, Use, Acc, C, N) ->
                     N2+1);
 make_one_clause([{atom, Line, Function}|T], Current, Use, Acc, C, N) ->
     C1 = gen_var(N+1),
-    RealModule = real_module(module_of(Function, Current, Use), Function),
+    {M, W} = module_word(Function, Current, Use),
     make_one_clause(T, Current, Use,
                     [{match, Line,
                       {var, Line, C1},
                       {call, Line,
-                       {remote, Line, {atom, Line, RealModule}, {atom, Line, Function}},
+                       {remote, Line, {atom, Line, M}, {atom, Line, W}},
                        [{var, Line, C}]}} | Acc],
                     C1,
                     N + 1);
@@ -707,8 +735,8 @@ call_block([{Module, Function, Arity}|T], #context{s=S}=C) ->
     Ret = apply(Module, Function, lists:reverse(Args)),
     call_block(T, C#context{s=[Ret|Rest]});
 call_block([H|T], #context{source=#src{module=Current, use=Use}}=C) when is_atom(H) ->
-    Module = module_of(H, Current, Use),
-    call_block(T, apply(real_module(Module, H), H, [C]));
+    {M, W} = module_word(H, Current, Use),
+    call_block(T, apply(M, W, [C]));
 call_block([H|T], #context{s=S}=C) ->
     call_block(T, C#context{s=[H|S]}).
 
@@ -733,10 +761,11 @@ eval({atom, Line, '='}, #context{s=[Value|S]}=C, B) ->
     Expr = {match, Line, Pattern, {var,  Line, '# Value'}},
     {value, _, B2} = erl_eval:expr(Expr, B1),
     {C1, B2};
-eval({atom, Line, Atom}=Function, #context{source=#src{module=Current, use=Use}}=C, B) ->
+eval({atom, Line, Atom}, #context{source=#src{module=Current, use=Use}}=C, B) ->
     B1 = erl_eval:add_binding('# C', C, B),
+    {M, W} = module_word(Atom, Current, Use),
     Expr = {call, Line,
-            {remote, Line, {atom, Line, real_module(module_of(Atom, Current, Use), Atom)}, Function},
+            {remote, Line, {atom, Line, M}, {atom, Line, W}},
             [{var, Line, '# C'}]},
     {value, C2, B2} = erl_eval:expr(Expr, B1),
     {C2, B2};

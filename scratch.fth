@@ -4,8 +4,14 @@
 # call_block を変えないとだめ
 
 
+a:foo
+b:foo
+a.foo
+b.foo
 
+'aaa 'a use-module-as
 
+a.."
 
 
 : bi (( X P Q )) X P call X Q call ;

@@ -317,7 +317,7 @@ t1() ->
           in=standard_io,
           buffer=[],
           line=0,
-          use=[core],
+          use=[{core, core}, {biw, biw}],
           module=core
          }).
 

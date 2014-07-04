@@ -1,18 +1,31 @@
+# #############################################################################
+# モジュールのテスト
+
 'test module
-
 : foo 1 ;
-
 ( foo 1 == ) assert
 
 'test' module
-
 : foo 2 ;
-
 ( foo 2 == ) assert
 
-'test module
+'test'' module
+'test' use-module
+( foo 2 == ) assert
 
+'test''' module
+'test 't use-module-as
+'test' 'tt use-module-as
+( t.foo 1 == ) assert
+( tt.foo 2 == ) assert
+
+'test module
 ( foo 1 == ) assert
+
+
+# ############################################################################
+
+'test module
 
 ( 10 fib 55 == ) assert
 
