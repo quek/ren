@@ -89,6 +89,10 @@ use-module: scratch
 
 ( 1 10 .. 0 ( + ) reduce 55 == ) assert
 
+( [ 1 2 3 ] length 3 == ) assert
+( { 1 2 3 4 } length 4 == ) assert
+( #{ 'a 1 'b 2 } length 2 == ) assert
+
 ( 1 10 .. 3 take [ 1 2 3 ] == ) assert
 
 ( { 1 5 .. 3 split-at } { [ 1 2 3 ] [ 4 5 ] } == ) assert

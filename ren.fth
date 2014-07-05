@@ -176,7 +176,11 @@
 
 : reduce (( List Init F )) Init List F each ;
 
-: length 0 ( drop 1+ ) reduce ;
+:g length dup type-of ;
+:m length (( list ))   erlang:length/1 ;
+:m length (( tuple ))  erlang:size/1 ;
+:m length (( binary )) erlang:size/1 ;
+:m length (( map ))    maps:size/1 ;
 
 : take (( List N )) [ List N take' ;
 : take'
