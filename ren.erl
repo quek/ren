@@ -28,6 +28,9 @@ module(#context{s=[Module|S], source=Src}=C) ->
 'use-module-as'(#context{s=[As,Module|S], source=#src{use=Use}=Src}=C) ->
     C#context{s=S, source=Src#src{use=[{Module, As}|Use]}}.
 
+'current-module'(#context{s=S, source=#src{module=Current}}=C) ->
+    C#context{s=[Current|S]}.
+
 'dump-context'(#context{s=S}=C) ->
     C#context{s=[C|S]}.
 
@@ -795,45 +798,54 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
         _ ->
             ok
     end,
-    case word(C) of
-        {{var, _, _}=Var, C2} ->
-            case Compile of
-                false ->
-                    {C3, B3} = eval(Var, C2, B),
-                    interpret(C3, B3);
-                true ->
-                    interpret(comma(Var, C2), B)
-            end;
-        {{Type, _, N}=Number, C2} when Type == integer; Type == float ->
-            case Compile of
-                false ->
-                    interpret(C2#context{s=[N|S]}, B);
-                true ->
-                    interpret(comma(Number, C2), B)
-            end;
-        {{erlang, _, {_Module, _Function, _Arity}}=ErlangFunction, #context{s=S}=C2} ->
-            case Compile of
-                true ->
-                    interpret(comma(ErlangFunction, C2), B);
-                _ ->
-                    {C3, B3} = eval(ErlangFunction, C2, B),
-                    interpret(C3, B3)
-            end;
-        {{atom, _, A}=Atom, #context{s=S}=C2} ->
-            case {immed(Current, Use, A), Compile} of
-                {false, true} ->
-                    interpret(comma(Atom, C2), B);
-                _ ->
-                    {C3, B3} = eval(Atom, C2, B),
-                    interpret(C3, B3)
-            end;
-        {{quote, Line, Atom}, #context{s=S}=C2} ->
-            case Compile of
-                false ->
-                    interpret(C2#context{s=[Atom|S]}, B);
-                _ ->
-                    interpret(comma({atom, Line, Atom}, comma({atom, Line, lit}, C2)), B)
-            end
+    {Word, C2} = word(C),
+    try
+        case Word of
+            {var, _, _}=Var ->
+                case Compile of
+                    false ->
+                        {C3, B3} = eval(Var, C2, B),
+                        interpret(C3, B3);
+                    true ->
+                        interpret(comma(Var, C2), B)
+                end;
+            {Type, _, N}=Number when Type == integer; Type == float ->
+                case Compile of
+                    false ->
+                        interpret(C2#context{s=[N|S]}, B);
+                    true ->
+                        interpret(comma(Number, C2), B)
+                end;
+            {erlang, _, {_Module, _Function, _Arity}}=ErlangFunction ->
+                case Compile of
+                    true ->
+                        interpret(comma(ErlangFunction, C2), B);
+                    _ ->
+                        {C3, B3} = eval(ErlangFunction, C2, B),
+                        interpret(C3, B3)
+                end;
+            {atom, _, A}=Atom ->
+                case {immed(Current, Use, A), Compile} of
+                    {false, true} ->
+                        interpret(comma(Atom, C2), B);
+                    _ ->
+                        {C3, B3} = eval(Atom, C2, B),
+                        interpret(C3, B3)
+                end;
+            {quote, Line, Atom} ->
+                case Compile of
+                    false ->
+                        interpret(C2#context{s=[Atom|S]}, B);
+                    _ ->
+                        interpret(comma({atom, Line, Atom}, comma({atom, Line, lit}, C2)), B)
+                end
+        end
+    catch
+        exit:"bye" ->
+            ok;
+        _:E ->
+            io:format("error: ~p ~p.\n", [Word, E]),
+            interpret(C2, B)
     end.
 
 

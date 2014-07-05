@@ -27,8 +27,9 @@ module: test
 # ############################################################################
 
 'test module
+use-module: scratch
 
-( 10 fib 55 == ) assert
+( 10 scratch.fib 55 == ) assert
 
 ( 0 0? ) assert
 ( 1 0? ! ) assert
