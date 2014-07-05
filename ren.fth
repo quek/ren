@@ -91,27 +91,19 @@
 
 
 : >tuple erlang:list_to_tuple/1 ;
-: >map maps:from_list/1 ;
 
-: { '{ ;
-: #{ '#{ ;
+: { '>tuple '{ ;
 
 : } [] }' ;
 : }'
     over '{ ==
-    ( nip >tuple )
-    (
-        over '#{ ==
-        ( nip 2 ( >tuple ) map-split-at >map )
-        ( cons }' )
-        if
-    )
+    ( nip swap call )
+    ( cons }' )
     if
 ;
 
-: at # map key -- value
-    swap maps:get/2
-;
+
+" map.fth" load
 
 
 : 1+ 1 + ;
@@ -234,8 +226,7 @@
 # おもちゃ
 module: scratch
 
-: fib
-    = N
+: fib (( N ))
     N 2 =<
     case
         true
