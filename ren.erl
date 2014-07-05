@@ -46,27 +46,26 @@ module(#context{s=[Module|S], source=Src}=C) ->
 cons(#context{s=[Y,X|T]}=C) ->
     C#context{s=[[X|Y]|T]}.
 
-':'(#context{}=C) ->
+':'(C) ->
     {Word, #context{s=S}=C1} = word(C),
     C2 = header(C1#context{s=[Word|S]}),
     C2#context{compile=true}.
 
-
 ';'(C) ->
     semicolon(C, false).
+
 immediate(C) ->
     semicolon(C, true).
-semicolon(#context{here=H, latest={atom, Line, Word}, debug=Debug,
-             source=#src{module=Current, use=Use}}=C, Immediate) ->
-    {M, W} = module_word(Word, Current, Use),
-    Codes = default_codes(M, Immediate),
-    C0 = gen_var(0),
-    Clauses = make_clauses(lists:reverse(H), Current, Use, C0, 0),
-    Codes2 = add_function(Codes, W, Line, Clauses),
-    Debug > 0 andalso io:format("~p\n", [Codes2]),
-    {ok, CModule, CBin} = compile:forms(Codes2),
-    code:load_binary(CModule, atom_to_list(CModule), CBin),
-    C#context{compile=false}.
+
+':g'(C) ->
+    {{atom, Line, Word}, #context{s=S}=C1} = word(C),
+    C2 = header(C1#context{s=[{atom, Line, {g, Word}}|S]}),
+    C2#context{compile=true}.
+
+':m'(C) ->
+    {{atom, Line, Word}, #context{s=S}=C1} = word(C),
+    C2 = header(C1#context{s=[{atom, Line, {m, Word}}|S]}),
+    C2#context{compile=true}.
 
 '[['(C) ->
     C#context{compile=false}.
@@ -254,6 +253,26 @@ key(C) ->
 
 'clear-stack'(C) ->
     C#context{s=[]}.
+
+
+'type-of'(#context{s=[X|S]}=C) ->
+    Type = if
+               is_integer(X)   -> integer;
+               is_float(X)     -> float;
+               is_list(X)      -> list;
+               is_tuple(X)     -> tuple;
+               is_map(X)       -> map;
+               is_bitstring(X) -> bitstring;
+               is_binary(X)    -> binary;
+               is_boolean(X)   -> boolean;
+               is_function(X)  -> function;
+               is_pid(X)       -> pid;
+               is_port(X)      -> port;
+               is_reference(X) -> reference;
+               is_atom(X)      -> atom;
+               true            -> unknown
+           end,
+    C#context{s=[Type|S]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -478,6 +497,42 @@ read_tupple_pattern({Word, C}, Elements) ->
     {Pattern, C1} = read_pattern({Word, C}),
     read_tupple_pattern(word(C1), [Pattern|Elements]).
 
+%% :g
+semicolon(#context{here=H, latest={atom, Line, {g, Word}}, debug=Debug,
+             source=#src{module=Current, use=Use}}=C, Immediate) ->
+    {M, W} = module_word(Word, Current, Use),
+    Codes = default_codes(M, Immediate) ++ [default_dispatch_code()],
+    C0 = gen_var(0),
+    Clauses = make_clauses(lists:reverse([{atom, Line, 'm dispatch'}|H]), Current, Use, C0, 0),
+    Codes2 = add_function(Codes, W, Line, Clauses),
+    Debug > 0 andalso io:format("~p\n", [Codes2]),
+    {ok, CModule, CBin} = compile:forms(update_codes_attribute(Codes2)),
+    code:load_binary(CModule, atom_to_list(CModule), CBin),
+    C#context{compile=false};
+%% :m
+semicolon(#context{here=H, latest={atom, Line, {m, Word}}, debug=Debug,
+             source=#src{module=Current, use=Use}}=C, _) ->
+    {M, _} = module_word(Word, Current, Use),
+    Codes = retrieve_codes(M),
+    C0 = gen_var(0),
+    Clauses = make_clauses(lists:reverse(H), Current, Use, C0, 0),
+    Codes2 = add_method(Codes, Line, Clauses),
+    Debug > 0 andalso io:format("~p\n", [Codes2]),
+    {ok, CModule, CBin} = compile:forms(update_codes_attribute(Codes2)),
+    code:load_binary(CModule, atom_to_list(CModule), CBin),
+    C#context{compile=false};
+%% :
+semicolon(#context{here=H, latest={atom, Line, Word}, debug=Debug,
+             source=#src{module=Current, use=Use}}=C, Immediate) ->
+    {M, W} = module_word(Word, Current, Use),
+    Codes = default_codes(M, Immediate),
+    C0 = gen_var(0),
+    Clauses = make_clauses(lists:reverse(H), Current, Use, C0, 0),
+    Codes2 = add_function(Codes, W, Line, Clauses),
+    Debug > 0 andalso io:format("~p\n", [Codes2]),
+    {ok, CModule, CBin} = compile:forms(Codes2),
+    code:load_binary(CModule, atom_to_list(CModule), CBin),
+    C#context{compile=false}.
 
 default_codes(Module, Immediate) ->
     Line = 0,
@@ -504,6 +559,23 @@ default_codes(Module, Immediate) ->
      {function, Line, immed, 1,
       [{clause, Line, [{var, Line, '_'}], [], [{atom, Line, Immediate}]}]}].
 
+default_dispatch_code() ->
+    C = gen_var(0),
+    {function, 0, 'm dispatch', 1,
+     [{clause, 0, [{var, 0, C}], [], [{var, 0, C}]}]}.
+
+retrieve_codes(Module) ->
+    {ren_codes, Codes} = lists:keyfind(ren_codes, 1, Module:module_info(attributes)),
+    Codes.
+
+update_codes_attribute(Codes) ->
+    update_codes_attribute(Codes, Codes, []).
+update_codes_attribute(_, [], Acc) ->
+    lists:reverse(Acc);
+update_codes_attribute(Codes, [{attribute, Line, ren_codes, _}|T], Acc) ->
+    update_codes_attribute(Codes, T, [{attribute, Line, ren_codes, Codes}|Acc]);
+update_codes_attribute(Codes, [H|T], Acc) ->
+    update_codes_attribute(Codes, T, [H|Acc]).
 
 add_function(Codes, Word, Line, Clauses) ->
     Codes2 = lists:map(fun(X) ->
@@ -526,6 +598,53 @@ add_function(Codes, Word, Line, Clauses) ->
         _ -> Codes2 ++ [{function, Line, Word, 1, Clauses}]
     end.
 
+add_method(Codes, Line, Clauses) ->
+    add_method(Codes, Line, Clauses, []).
+add_method([], Line, Clauses, Acc) ->
+    lists:reverse([{function, Line, 'm dispatch', 1, Clauses}|Acc]);
+add_method([{attribute, Line, export, Export}=H|T], Line2, Clauses, Acc) ->
+    case lists:keyfind('m dispatch', 1, Export) of
+        false ->
+            add_method(T, Line2, Clauses,
+                       [{attribute, Line, export, [{'m dispatch', 1}|Export]}|Acc]);
+        _ ->
+            add_method(T, Line2, Clauses, [H|Acc])
+    end;
+add_method([{function, Line, 'm dispatch', 1, Existing}|T], _, Adding, Acc) ->
+    lists:reverse([{function, Line, 'm dispatch', 1,
+                    merge_method_clauses(Existing, lists:reverse(Adding))}|Acc]) ++ T;
+add_method([H|T], Line, Clauses, Acc) ->
+    add_method(T, Line, Clauses, [H|Acc]).
+
+merge_method_clauses(Existing, []) ->
+    Existing;
+merge_method_clauses(Existing, [H|T]) ->
+    merge_method_clauses(merge_method_clauses_one(lists:reverse(Existing), H, []), T).
+
+merge_method_clauses_one([], Adding, Acc) ->
+    [Adding|Acc];
+merge_method_clauses_one([H|T], Adding, Acc) ->
+    case same_pattern(H, Adding) of
+        true ->
+            lists:reverse(T) ++ [Adding|Acc];
+        false ->
+            merge_method_clauses_one(T, Adding, [H|Acc])
+    end.
+
+same_pattern({_, _, X, _, _}, {_, _, Y, _, _}) ->
+    flatten_pattern(X, []) == flatten_pattern(Y, []).
+
+flatten_pattern([], Acc) ->
+    Acc;
+flatten_pattern([H|T], Acc) when is_tuple(H) ->
+    [Tag,_Line|Rest] = tuple_to_list(H),
+    flatten_pattern(T, flatten_pattern(Tag, flatten_pattern(Rest, Acc)));
+flatten_pattern([H|T], Acc) when is_list(H) ->
+    flatten_pattern(H, flatten_pattern(T, Acc));
+flatten_pattern([H|T], Acc) ->
+    flatten_pattern(T, [H|Acc]);
+flatten_pattern(X, Acc) ->
+    [X|Acc].
 
 make_clauses(Codes, Current, Use, C, N) ->
     {Arg, Codes1, N1} = make_clause_arg(Codes, C, N),
@@ -651,6 +770,14 @@ make_one_clause([{atom, Line, 'case'}|T], Current, Use, Acc, C, N) ->
                              CaseClauses}}] | Acc],
                     C3,
                     N2+1);
+make_one_clause([{atom, Line, 'm dispatch'}|T], Current, Use, Acc, C, N) ->
+    C1 = gen_var(N+1),
+    make_one_clause(T, Current, Use,
+                    [{match, Line,
+                      {var, Line, C1},
+                      {call, Line, {atom, Line, 'm dispatch'}, [{var, Line, C}]}} | Acc],
+                    C1,
+                    N + 1);
 make_one_clause([{atom, Line, Function}|T], Current, Use, Acc, C, N) ->
     C1 = gen_var(N+1),
     {M, W} = module_word(Function, Current, Use),
@@ -799,7 +926,7 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
             ok
     end,
     {Word, C2} = word(C),
-    try
+%    try
         case Word of
             {var, _, _}=Var ->
                 case Compile of
@@ -839,14 +966,14 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
                     _ ->
                         interpret(comma({atom, Line, Atom}, comma({atom, Line, lit}, C2)), B)
                 end
-        end
-    catch
-        exit:"bye" ->
-            ok;
-        _:E ->
-            io:format("error: ~p ~p.\n", [Word, E]),
-            interpret(C2, B)
-    end.
+        end.
+%    catch
+%        exit:"bye" ->
+%            ok;
+%        _:E ->
+%            io:format("error: ~p ~p.\n", [Word, E]),
+%            interpret(C2, B)
+%    end.
 
 
 i() ->

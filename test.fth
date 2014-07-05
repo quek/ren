@@ -114,4 +114,21 @@ tset-"-and-dup
 ( cons [ " a" " a" .] == ) assert
 
 
+# #############################################################################
+# :g :m
+:g generic-foo type-of ;
+:m generic-foo drop 'default ;
+( [] generic-foo 'default == ) assert
+:m generic-foo (( list ))    'a-list ;
+:m generic-foo (( tuple ))   'a-tuple ;
+:m generic-foo (( integer )) 'a-integer ;
+:m generic-foo (( map ))     'a-map ;
+( [] generic-foo    'a-list    == ) assert
+( { 1 } generic-foo 'a-tuple   == ) assert
+( 0 generic-foo     'a-integer == ) assert
+( #{} generic-foo   'a-map     == ) assert
+:m generic-foo (( integer )) 777 ;
+( 0 generic-foo 777 == ) assert
+
+
 " ok" .

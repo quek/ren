@@ -103,9 +103,6 @@
 ;
 
 
-" map.fth" load
-
-
 : 1+ 1 + ;
 : 1- 1 - ;
 
@@ -143,6 +140,9 @@
     [[ key \ , ]]
     (( ))
 ;
+
+
+" map.fth" load
 
 
 : assert (( Form ))
