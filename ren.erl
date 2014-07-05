@@ -926,7 +926,7 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
             ok
     end,
     {Word, C2} = word(C),
-%    try
+    try
         case Word of
             {var, _, _}=Var ->
                 case Compile of
@@ -966,14 +966,14 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
                     _ ->
                         interpret(comma({atom, Line, Atom}, comma({atom, Line, lit}, C2)), B)
                 end
-        end.
-%    catch
-%        exit:"bye" ->
-%            ok;
-%        _:E ->
-%            io:format("error: ~p ~p.\n", [Word, E]),
-%            interpret(C2, B)
-%    end.
+        end
+    catch
+        exit:"bye" ->
+            ok;
+        _:E ->
+            io:format("error: ~p, word: ~p\n~p.\n", [E, Word, erlang:get_stacktrace()]),
+            interpret(C2, B)
+    end.
 
 
 i() ->
