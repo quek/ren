@@ -864,8 +864,6 @@ block_to_list([], Line) ->
     {nil, Line};
 block_to_list([{block, Line2, Block}|T], Line) ->
     {cons, Line, block_to_list(Block, Line2), block_to_list(T, Line)};
-block_to_list([{atom, _, lit},Literal|T], Line) ->
-    {cons, Line, Literal, block_to_list(T, Line)};
 block_to_list([H|T], Line) ->
     {cons, Line, H, block_to_list(T, Line)}.
 

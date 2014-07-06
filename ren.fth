@@ -21,10 +21,6 @@
 : #! postpone # ; immediate
 #! これもコメント
 
-: [']
-    'lit , 'lit , ' ,
-; immediate
-
 
 : module: ' module ; immediate                  # module: foo
 : use-module: ' dup use-module-as ; immediate   # use-module: foo
@@ -140,8 +136,8 @@
 :m type-of nip ;
 :m type-of (( Map map ))
     Map '-type- key?
-    ( Map ['] -type- at )
-    ( ['] map )
+    ( Map '-type- at )
+    ( 'map )
     if
 ;
 
@@ -233,8 +229,8 @@
 
 : ."
     compile?
-    ( postpone " ['] . , )
-    ( '" . )
+    ( postpone " '. , )
+    ( postpone " . )
     if
 ; immediate
 
@@ -258,7 +254,7 @@ module: scratch
     ." Hello World!"
 ;
 
-: point{ ( ['] point >typed-map ) '{ ;
+: point{ ( 'point >typed-map ) '{ ;
 :m + (( #{ x X1 y Y1 } #{ x X2 y Y2 } point point ))
     point{ 'x X1 X2 + 'y Y1 Y2 + }
 ;

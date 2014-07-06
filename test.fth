@@ -101,11 +101,11 @@ use-module: scratch
 
 
 # #############################################################################
-# postpone ['] '
+# postpone '
 : "-and-dup
     compile?
-    ( postpone " ['] dup , )
-    ( '" dup )
+    ( postpone " 'dup , )
+    ( postpone " dup )
     if
 ; immediate
 
