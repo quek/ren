@@ -1,3 +1,4 @@
+* ( Map ['] -type- at ) を ( Map '-type- at ) 書きたい
 * make_one_clause {atom, Line, xxx} xxx はネームスペース無視してる
 * = case の実行モードでも動き
 * char のリテラル表記
