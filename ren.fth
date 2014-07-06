@@ -103,14 +103,6 @@
 ;
 
 
-: 1+ 1 + ;
-: 1- 1 - ;
-
-: 0? (( 0 )) true (( _ )) false ;
-
-: ! (( false )) true (( _ )) false ;
-
-
 
 : " [ key "' ; immediate
 : "'
@@ -143,6 +135,28 @@
 
 
 " map.fth" load
+
+:g core.type-of dup biw.type-of ;
+:m type-of nip ;
+:m type-of (( Map map ))
+    Map '-type- key?
+    ( Map ['] -type- at )
+    ( ['] map )
+    if
+;
+
+
+:g + over type-of over type-of ;     # x y -- x y type-of-x type-of-y
+:m + (( integer _ )) erlang:+/2 ;
+:m + (( float   _ )) erlang:+/2 ;
+:m + (( list list )) erlang:++/2 ;
+
+
+: 1+ 1 + ;
+: 1- 1 - ;
+: 0? (( 0 )) true (( _ )) false ;
+: ! (( false )) true (( _ )) false ;
+
 
 
 : assert (( Form ))
@@ -180,7 +194,7 @@
 :m length (( list ))   erlang:length/1 ;
 :m length (( tuple ))  erlang:size/1 ;
 :m length (( binary )) erlang:size/1 ;
-:m length (( map ))    maps:size/1 ;
+:m length (( map ))    erlang:map_size/1 ;
 
 : take (( List N )) [ List N take' ;
 : take'
@@ -242,4 +256,9 @@ module: scratch
 
 : hello
     ." Hello World!"
+;
+
+: point{ ( ['] point >typed-map ) '{ ;
+:m + (( #{ x X1 y Y1 } #{ x X2 y Y2 } point point ))
+    point{ 'x X1 X2 + 'y Y1 Y2 + }
 ;

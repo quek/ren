@@ -14,3 +14,9 @@ module: core
 : at! (( Map Key Value ))
     Key Value Map maps:put/3
 ;
+
+: key? (( Map Key )) Key Map maps:is_key/2 ;
+
+: >typed-map (( List Type ))
+    List >map '-type- Type at!
+;

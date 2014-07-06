@@ -1,5 +1,6 @@
 [ 1 2 ] = [ X Y ]
 [ 1 2 ] (( [ X Y ] )) =
+1 2 (( X Y )) =
 
 ( X Y + 3 == ) assert
 # call_block を変えないとだめ
@@ -15,27 +16,34 @@
 
 
 
+# TODO map 引数のパターンマッチ
 
-: length type-of dispatch length ;
+: point{ ( 'point >typed-map ) '{ ;
+point{ 'x X1 X2 + 'y Y1 Y2 + }
 
-:m length erlang:length/1 ;
+:g core.type-of dup biw.type-of ;
+:m type-of nip ;
+:m type-of (( #{ -type- X } map )) X ;
 
-:m length
-(( Tupul tuple )) length
+:g + over type-of over type-of ;     # x y -- x y type-of-x type-of-y
+:m + (( list list )) erlang:'++'/2 ;
+:m + (( #{ x X1 y Y1 } #{ x X2 y Y2 } point point ))
+    piont{ 'x X1 X2 + 'y Y1 Y2 + }
 ;
 
-:m length
-(( X tao )) X 'body-length @
-;
+" ab" " cd" +  # => " abcd"
+point{ 'x 1 'y 2 } point{ 'x 3 'y 1 } +  # => point{ 'x 4 'y 3 }
 
 
-:g foo type-of ;
-:m foo drop 'default ;
-:m foo (( list )) 'l ;
-:m foo (( tuple )) 't ;
-:m foo (( list )) 'l!!! ;
 
-1 foo
-[] foo
-{ 1 } foo
+
+:m + (( integer X ))     number X + ;
+:m + (( float   X ))     number X + ;
+:m + (( X integer ))     X number + ;
+:m + (( X   float ))     X number + ;
+:m + (( number number )) erlang:+/2 ;
+
+# 実際のところ、これでいい。
+:m + (( integer X ))     erlang:+/2 ;
+:m + (( float   X ))     erlang:+/2 ;
 

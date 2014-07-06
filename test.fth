@@ -134,5 +134,7 @@ tset-"-and-dup
 :m generic-foo (( integer )) 777 ;
 ( 0 generic-foo 777 == ) assert
 
+( point{ 'x 1 'y 10 } point{ 'x 2 'y 20 } + point{ 'x 3 'y 30 } == ) assert
+
 
 " ok" .

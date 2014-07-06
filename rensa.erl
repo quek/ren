@@ -318,7 +318,7 @@ t1() ->
           buffer=[],
           line=0,
           use=[{core, core}, {biw, biw}],
-          module=core
+          module=scratch
          }).
 
 -record(context, {
@@ -335,13 +335,11 @@ immed(bar, _) ->
     true.
 bar(X) ->
     baz(X).
-baz(#context{s=[A,B|T]}=C) ->
-    C0 = C#context{s=T},
-    A,
-    B,
-    C1 = foo:bar(C0);
-baz(#context{s=[[]|_]}=C) ->
-    foo:bar(C).
+baz(#context{s=[#{x := X}|T]}=C) ->
+    C2  = fun(C1) ->
+            [X, C1#context{s=T}]
+    end(C),
+    C2.
 ",
 compile(S).
 

@@ -128,9 +128,6 @@ call(#context{s=[Block|S]}=C) ->
     C#context{s=[B =/= A|S]}.
 
 
-'+'(#context{s=[A,B|S]}=C) ->
-    C#context{s=[B+A|S]}.
-
 '-'(#context{s=[A,B|S]}=C) ->
     C#context{s=[B-A|S]}.
 
@@ -447,6 +444,11 @@ make_pattern([{atom, _, '['}|T]) ->
 make_pattern([{atom, Line, '{'}|T]) ->
     {Elements, T1} = make_tupple_pattern(T, []),
     {{tuple, Line, Elements}, T1};
+make_pattern([{atom, Line, '#{'}|T]) ->
+    {Elements, T1} = make_tupple_pattern(T, []),
+    {{map, Line, fun F([], Acc) -> lists:reverse(Acc);
+                     F([K,V|Es], Acc) -> F(Es, [{map_field_exact, Line, K, V}|Acc])
+                 end(Elements, [])}, T1};
 make_pattern([{_, _, _}=X|T]) ->
     {X, T}.
 
@@ -655,13 +657,29 @@ make_clauses(Codes, Current, Use, C, N) ->
                             C1 = gen_var(N1),
                             N2 = N1 + 1,
                             C2 = gen_var(N2),
-                            {[{match,1,
-                               {var,1, C2},
-                               {record,1,
-                                {var,1, C},
-                                      context,
-                                [{record_field,1,{atom,1,s},{var,1,C1}}]}}],
-                             C2, N2}
+                            {
+                              %[{match,1,
+                              % {var,1, C2},
+                              % {record,1,
+                              %  {var,1, C},
+                              %        context,
+                              %  [{record_field,1,{atom,1,s},{var,1,C1}}]}}],
+                              % map のマッチで bad argument になる。バグじゃないかな?
+                              [{match, 0,
+                                {var, 0, C2},
+                                {call, 0,
+                                 {'fun', 0,
+                                  {clauses,
+                                   [{clause, 0,
+                                     [{var, 0,'# Arg'}],
+                                     [],
+                                     [{record, 0,
+                                       {var, 0, '# Arg'},
+                                       context,
+                                       [{record_field, 0, {atom, 0, s}, {var, 0, C1}}]}]}]}},
+                                 [{var, 0, C}]}}],
+                              C2, N2
+                            }
                     end,
     {Clause, Codes2, _} = make_one_clause(Codes1, Current, Use, Acc, C3, N3),
     [{clause, 0,
@@ -971,7 +989,7 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
         exit:bye ->
             ok;
         _:E ->
-            io:format("error: ~p, word: ~p\n~p.\n", [E, Word, erlang:get_stacktrace()]),
+            io:format("error: ~p, word: ~p\n~p\n~p.\n", [E, Word, C2, erlang:get_stacktrace()]),
             interpret(C2, B)
     end.
 
