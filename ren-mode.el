@@ -39,6 +39,7 @@
   (let ((st (make-syntax-table)))
     ;; (modify-syntax-entry ?# "<" st)
     ;; (modify-syntax-entry ?\n ">" st)
+    (modify-syntax-entry ?\' "." st)
     st)
   "Syntax table for `ren-mode'.")
 
@@ -60,7 +61,52 @@
   nil
   )
 
- ;;;###autoload
+(defconst ren-smie-tokens
+  '((":" . (":" ":g" ":m"))
+    (keyword  . (";" "immediate"))))
+
+(defconst ren-smie-token-regexp
+  "^:[gm]?\\|;")
+
+(defconst ren-smie-grammar
+  (smie-prec2->grammar
+   (smie-bnf->prec2
+    '((words)
+      (cmd
+       (":" words ";")
+       (":g" words ";")
+       (":m" words ";")))
+    '((assoc ";"))
+    '((assoc "immediate")))))
+
+(defvar ren-indent-width 4)
+
+(defun ren-smie-rules (kind token)
+  (message (format "[%s] [%s]" kind token))
+  (pcase (cons kind token)
+    (`(:after . ";")  '(column . 0))
+    (`(:after . ":")  ren-indent-width)
+    (`(:before . ":") '(column . 0))
+    (`(:elem . basic) ren-indent-width)))
+
+(defun ren-smie-forward-token ()
+  (forward-comment (point-max))
+  (buffer-substring-no-properties
+   (point)
+   (cond ((looking-at "[:;]") (forward-char 1) (point))
+         (t (skip-syntax-forward "w_")
+            (point)))))
+
+(defun ren-smie-backward-token ()
+  (forward-comment (- (point)))
+  (buffer-substring-no-properties
+   (point)
+   (cond ((looking-back "[:;]") (forward-char -1) (point))
+         (t (skip-syntax-backward "w_")
+            (point)))))
+
+
+;;;###autoload
 (define-derived-mode ren-mode fundamental-mode "Ren"
   "A major mode for editing Ren files."
   :syntax-table ren-mode-syntax-table
@@ -68,11 +114,13 @@
   (setq-local comment-start-skip "# ")
   (setq-local font-lock-defaults
               '(ren-font-lock-keywords))
-  (setq-local indent-line-function 'ren-indent-line)
+  ;; (setq-local indent-line-function 'ren-indent-line)
   (setq-local imenu-generic-expression
               ren-imenu-generic-expression)
   (setq-local outline-regexp ren-outline-regexp)
-  ;; ...
+  (smie-setup ren-smie-grammar 'ren-smie-rules
+              :forward-token 'ren-smie-forward-token
+              :backward-token 'ren-smie-backward-token)
   )
 
  ;;; Indentation
