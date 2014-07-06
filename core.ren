@@ -130,7 +130,7 @@
 ;
 
 
-" map.fth" load
+" map.ren" load
 
 :g core.type-of dup biw.type-of ;
 :m type-of nip ;
@@ -227,10 +227,10 @@
 ;
 
 
-: ."
+: ."                            # "
     compile?
-    ( postpone " '. , )
-    ( postpone " . )
+    ( postpone " '. , )         # "
+    ( postpone " . )            # "
     if
 ; immediate
 

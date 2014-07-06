@@ -993,12 +993,12 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
 
 
 i() ->
-    interpret(load(#context{s=["ren.fth"]}), erl_eval:new_bindings()).
+    interpret(load(#context{s=["core.ren"]}), erl_eval:new_bindings()).
 
 d() ->
-    interpret(load(#context{s=["ren.fth"], debug=1}), erl_eval:new_bindings()).
+    interpret(load(#context{s=["core.ren"], debug=1}), erl_eval:new_bindings()).
 
 test() ->
-    C1 = load(#context{s=["test.fth"]}),
-    C2 = load(C1#context{s=["ren.fth"]}),
+    C1 = load(#context{s=["test.ren"]}),
+    C2 = load(C1#context{s=["core.ren"]}),
     interpret(C2, erl_eval:new_bindings()).
