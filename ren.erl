@@ -396,7 +396,7 @@ lit(Literal, #context{s=S}=C) ->
     C#context{s=[Literal|S]}.
 
 bye(_) ->
-    exit(bye).
+    exit(normal).
 
 literal_type(X) when is_integer(X) ->
     integer;
@@ -984,7 +984,7 @@ interpret(#context{s=S, r=R, compile=Compile, here=H, debug=Debug,
                 end
         end
     catch
-        exit:bye ->
+        exit:normal ->
             ok;
         _:E ->
             io:format("error: ~p, word: ~p\n~p\n~p.\n", [E, Word, C2, erlang:get_stacktrace()]),

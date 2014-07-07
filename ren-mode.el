@@ -37,9 +37,11 @@
 
 (defvar ren-mode-syntax-table
   (let ((st (make-syntax-table)))
-    ;; (modify-syntax-entry ?# "<" st)
-    ;; (modify-syntax-entry ?\n ">" st)
-    (modify-syntax-entry ?\' "." st)
+    (modify-syntax-entry ?#  ". 1"  st)
+    (modify-syntax-entry ?\  ". 2b" st)
+    (modify-syntax-entry ?\n "> b"  st)
+    (modify-syntax-entry ?\' "'"    st)
+    (modify-syntax-entry ?!  ". 2b" st)
     st)
   "Syntax table for `ren-mode'.")
 
@@ -49,8 +51,7 @@
     ;; ("a?\"[^\"]+\"" . font-lock-string-face)
     ("\\<[A-Z_][^ ]*" . font-lock-variable-name-face)
     (,(regexp-opt '(":" ";" "immediate" "true" "false" ":g" ":m"
-                    "((" "))" "(" ")" "{" "#{" "}" "[" "]") t) . font-lock-constant-face)
-    ("\\(^\\| \\)# .*" . font-lock-comment-face))
+                    "((" "))" "(" ")" "{" "#{" "}" "[" "]") t) . font-lock-constant-face))
   "Keyword highlighting specification for `ren-mode'.")
 
 (defvar ren-imenu-generic-expression
@@ -71,13 +72,12 @@
 (defconst ren-smie-grammar
   (smie-prec2->grammar
    (smie-bnf->prec2
-    '((words)
+    '((exp)
       (cmd
        (":" words ";")
        (":g" words ";")
        (":m" words ";")))
-    '((assoc ";"))
-    '((assoc "immediate")))))
+    '((assoc ";")))))
 
 (defvar ren-indent-width 4)
 
@@ -87,7 +87,8 @@
     (`(:after . ";")  '(column . 0))
     (`(:after . ":")  ren-indent-width)
     (`(:before . ":") '(column . 0))
-    (`(:elem . basic) ren-indent-width)))
+    (`(:elem . basic) ren-indent-width)
+    (`(:list-intro . ,(or "")) t)))
 
 (defun ren-smie-forward-token ()
   (forward-comment (point-max))
