@@ -36,13 +36,19 @@
   "Keymap for `ren-mode'.")
 
 (defvar ren-mode-syntax-table
-  (let ((st (make-syntax-table)))
-    (modify-syntax-entry ?#  ". 1"  st)
-    (modify-syntax-entry ?\  ". 2b" st)
-    (modify-syntax-entry ?\n "> b"  st)
-    (modify-syntax-entry ?\' "'"    st)
-    (modify-syntax-entry ?!  ". 2b" st)
-    st)
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?#  ". 1"  table)
+    (modify-syntax-entry ?\  ". 2b" table)
+    (modify-syntax-entry ?\n "> b"  table)
+    (modify-syntax-entry ?\' "'"    table)
+    (modify-syntax-entry ?!  ". 2b" table)
+    (modify-syntax-entry ?\( "()" table)
+    (modify-syntax-entry ?\) ")(" table)
+    (modify-syntax-entry ?\{ "(}" table)
+    (modify-syntax-entry ?\} "){" table)
+    (modify-syntax-entry ?\[ "(]" table)
+    (modify-syntax-entry ?\] ")[" table)
+    table)
   "Syntax table for `ren-mode'.")
 
 ;;
@@ -62,22 +68,10 @@
   nil
   )
 
-(defconst ren-smie-tokens
-  '((":" . (":" ":g" ":m"))
-    (keyword  . (";" "immediate"))))
-
 (defconst ren-smie-token-regexp
   "^:[gm]?\\|;")
 
-(defconst ren-smie-grammar
-  (smie-prec2->grammar
-   (smie-bnf->prec2
-    '((exp)
-      (cmd
-       (":" words ";")
-       (":g" words ";")
-       (":m" words ";")))
-    '((assoc ";")))))
+(defconst ren-smie-grammar nil)
 
 (defvar ren-indent-width 4)
 
@@ -85,16 +79,20 @@
   (message (format "[%s] [%s]" kind token))
   (pcase (cons kind token)
     (`(:after . ";")  '(column . 0))
-    (`(:after . ":")  ren-indent-width)
-    (`(:before . ":") '(column . 0))
+    (`(:after . ,(or `":" `"case"))  ren-indent-width)
+    (`(:before . ,(or `":" `";")) '(column . 0))
     (`(:elem . basic) ren-indent-width)
-    (`(:list-intro . ,(or "")) t)))
+    (`(:list-intro . ,_) ren-indent-width)))
+
+(defconst ren-token-regexp
+  "((\\|[][{}():;]\\|case")
 
 (defun ren-smie-forward-token ()
   (forward-comment (point-max))
   (buffer-substring-no-properties
    (point)
-   (cond ((looking-at "[:;]") (forward-char 1) (point))
+   (cond ((looking-at ren-token-regexp)
+          (goto-char (match-end 0)))
          (t (skip-syntax-forward "w_")
             (point)))))
 
@@ -102,44 +100,25 @@
   (forward-comment (- (point)))
   (buffer-substring-no-properties
    (point)
-   (cond ((looking-back "[:;]") (forward-char -1) (point))
+   (cond ((looking-back ren-token-regexp) (forward-char -1) (point))
          (t (skip-syntax-backward "w_")
             (point)))))
 
 
 ;;;###autoload
-(define-derived-mode ren-mode fundamental-mode "Ren"
+(define-derived-mode ren-mode prog-mode "Ren"
   "A major mode for editing Ren files."
   :syntax-table ren-mode-syntax-table
   (setq-local comment-start "# ")
   (setq-local comment-start-skip "# ")
-  (setq-local font-lock-defaults
-              '(ren-font-lock-keywords))
+  (setq-local font-lock-defaults '(ren-font-lock-keywords))
   ;; (setq-local indent-line-function 'ren-indent-line)
   (setq-local imenu-generic-expression
               ren-imenu-generic-expression)
   (setq-local outline-regexp ren-outline-regexp)
   (smie-setup ren-smie-grammar 'ren-smie-rules
               :forward-token 'ren-smie-forward-token
-              :backward-token 'ren-smie-backward-token)
-  )
-
- ;;; Indentation
-
-(defun ren-indent-line ()
-  "Indent current line of Ren code."
-  (interactive)
-  (let ((savep (> (current-column) (current-indentation)))
-        (indent (condition-case nil (max (ren-calculate-indentation) 0)
-                  (error 0))))
-    (if savep
-        (save-excursion (indent-line-to indent))
-      (indent-line-to indent))))
-
-(defun ren-calculate-indentation ()
-  "Return the column to which the current line should be indented."
-  ;; ...
-  )
+              :backward-token 'ren-smie-backward-token))
 
 
 ;;;###autoload
