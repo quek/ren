@@ -101,8 +101,8 @@
 
 
 : " [ key "' ; immediate
-: "'
-    (( [[ key " , ]] ))
+: "'                            # "
+    (( [[ key " , ]] ))         # "
     ] compile? ( , ) when
     (( [[ key \ , ]] ))
     key backslash-char-code "'

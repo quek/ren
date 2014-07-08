@@ -73,10 +73,10 @@ use-module: scratch
     { 'b 3 self } send
     {
         receive
-          X ( X )
+            X ( X )
         ;receive
         receive
-          Y ( Y )
+            Y ( Y )
         ;receive
     }
 ;
